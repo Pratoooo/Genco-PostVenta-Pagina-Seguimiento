@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Iniciar sesión — Grupo Genco Siniestros</title>
+  <meta name="description" content="Seguimiento de pedidos de siniestros de Grupo Genco para talleres y peritos.">
+  <meta name="theme-color" content="#253883">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="/img/genco.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap">
+  <link rel="stylesheet" href="/css/estilos.css">
+</head>
+<body>
+  <main class="auth-page">
+    <div style="width:100%;max-width:460px">
+      <section class="auth-card">
+        <img class="logo-genco" src="/img/genco.png" alt="Grupo Genco">
+
+        <!-- Ingresar -->
+        <div id="view-login" data-vista>
+          <h1>Iniciar sesión</h1>
+          <p class="sub">Seguimiento de pedidos para talleres y peritos</p>
+          <form id="form-login" novalidate>
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="nombre@ejemplo.com">
+            </div>
+            <div class="field">
+              <div class="label-row">
+                <label for="password">Contraseña</label>
+                <a class="link-btn small" href="#recuperar">¿Olvidaste tu contraseña?</a>
+              </div>
+              <div class="input-wrap">
+                <input id="password" name="password" type="password" autocomplete="current-password">
+                <button type="button" class="toggle" data-ver="password" aria-label="Mostrar contraseña" aria-pressed="false"></button>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn" type="submit">Ingresar</button>
+              <a class="btn outline" href="#registro">Registrarse</a>
+            </div>
+          </form>
+          <div id="login-msg"></div>
+        </div>
+
+        <!-- Registrarse -->
+        <div id="view-registro" class="hidden" data-vista>
+          <h1>Crear cuenta</h1>
+          <p class="sub">Completá tus datos para registrarte</p>
+          <form id="form-registro" novalidate>
+            <fieldset style="border:0;padding:0;margin:0">
+              <legend style="font-weight:600;font-size:.85rem;margin-bottom:8px;padding:0">¿Qué tipo de usuario sos?</legend>
+              <div class="roles">
+                <div class="rol-opcion">
+                  <input type="radio" name="rol" value="taller" id="rol-taller">
+                  <label for="rol-taller"><span class="ico" data-icono="taller"></span><strong>Taller</strong><small>Veo los pedidos de mi taller</small></label>
+                </div>
+                <div class="rol-opcion">
+                  <input type="radio" name="rol" value="perito" id="rol-perito">
+                  <label for="rol-perito"><span class="ico" data-icono="perito"></span><strong>Perito</strong><small>Veo los pedidos que tengo asignados</small></label>
+                </div>
+              </div>
+            </fieldset>
+            <div class="field hidden" id="campo-empresa" style="margin-top:16px">
+              <label for="r-empresa">Nombre del taller</label>
+              <input id="r-empresa" name="empresa" autocomplete="organization" placeholder="Ej: Taller Norte">
+            </div>
+            <div class="field" style="margin-top:16px">
+              <label for="r-nombre">Nombre y apellido</label>
+              <input id="r-nombre" name="nombre" autocomplete="name" placeholder="Ej: Juan Pérez">
+            </div>
+            <div class="field">
+              <label for="r-email">Email</label>
+              <input id="r-email" name="email" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="nombre@ejemplo.com">
+              <div class="hint">Lo vas a usar para ingresar y para recuperar tu contraseña.</div>
+            </div>
+            <div class="field">
+              <label for="r-password">Contraseña</label>
+              <div class="input-wrap">
+                <input id="r-password" name="password" type="password" autocomplete="new-password">
+                <button type="button" class="toggle" data-ver="r-password" aria-label="Mostrar contraseña" aria-pressed="false"></button>
+              </div>
+              <div class="hint">Mínimo 8 caracteres.</div>
+            </div>
+            <div class="field">
+              <label for="r-repetir">Repetir contraseña</label>
+              <input id="r-repetir" name="repetir" type="password" autocomplete="new-password">
+            </div>
+            <button class="btn" type="submit" style="width:100%;margin-top:22px">Crear cuenta</button>
+          </form>
+          <div id="registro-msg"></div>
+          <p class="alt-accion">¿Ya tenés cuenta? <a class="link-btn" href="#">Iniciar sesión</a></p>
+        </div>
+
+        <!-- Registro enviado -->
+        <div id="view-registrado" class="hidden exito" data-vista>
+          <div class="ok-icon" data-icono="check"></div>
+          <h1>¡Cuenta creada!</h1>
+          <p id="registrado-texto"></p>
+          <a class="btn" href="#" style="width:100%;margin-top:18px">Volver a iniciar sesión</a>
+        </div>
+
+        <!-- Olvidé mi contraseña -->
+        <div id="view-recuperar" class="hidden" data-vista>
+          <h1>Recuperar contraseña</h1>
+          <p class="sub">Ingresá el email de tu cuenta y te enviamos un enlace para crear una nueva.</p>
+          <form id="form-recuperar" novalidate>
+            <div class="field">
+              <label for="rec-email">Email</label>
+              <input id="rec-email" name="email" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="nombre@ejemplo.com">
+            </div>
+            <button class="btn" type="submit" style="width:100%;margin-top:22px">Enviar enlace</button>
+          </form>
+          <div id="recuperar-msg"></div>
+          <p class="alt-accion"><a class="link-btn" href="#">← Volver a iniciar sesión</a></p>
+        </div>
+
+        <!-- Enlace enviado -->
+        <div id="view-enviado" class="hidden exito" data-vista>
+          <div class="ok-icon" data-icono="mail"></div>
+          <h1>Revisá tu email</h1>
+          <p>Si <strong id="enviado-email"></strong> corresponde a una cuenta, te enviamos un enlace para crear una nueva contraseña. Vence en 1 hora.</p>
+          <p class="small">¿No te llegó en unos minutos? Revisá la carpeta de spam o pedile a Genco que te cambie la contraseña.</p>
+          <a class="btn" href="#" style="width:100%;margin-top:18px">Volver a iniciar sesión</a>
+        </div>
+
+        <!-- Nueva contraseña (desde el enlace del mail) -->
+        <div id="view-restablecer" class="hidden" data-vista>
+          <h1>Nueva contraseña</h1>
+          <p class="sub">Elegí una contraseña nueva para tu cuenta.</p>
+          <form id="form-restablecer" novalidate>
+            <div class="field">
+              <label for="n-password">Nueva contraseña</label>
+              <div class="input-wrap">
+                <input id="n-password" name="password" type="password" autocomplete="new-password">
+                <button type="button" class="toggle" data-ver="n-password" aria-label="Mostrar contraseña" aria-pressed="false"></button>
+              </div>
+              <div class="hint">Mínimo 8 caracteres.</div>
+            </div>
+            <div class="field">
+              <label for="n-repetir">Repetir contraseña</label>
+              <input id="n-repetir" name="repetir" type="password" autocomplete="new-password">
+            </div>
+            <button class="btn" type="submit" style="width:100%;margin-top:22px">Guardar contraseña</button>
+          </form>
+          <div id="restablecer-msg"></div>
+        </div>
+
+        <!-- Contraseña cambiada -->
+        <div id="view-restablecido" class="hidden exito" data-vista>
+          <div class="ok-icon" data-icono="check"></div>
+          <h1>¡Contraseña actualizada!</h1>
+          <p id="restablecido-texto">Ya podés ingresar con tu nueva contraseña.</p>
+          <a class="btn" href="#" style="width:100%;margin-top:18px">Iniciar sesión</a>
+        </div>
+      </section>
+      <div class="auth-foot">
+        <a href="/consulta">Consultar un pedido sin cuenta →</a>
+        <img src="/img/stellantis-blanco.png" alt="Stellantis">
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="/js/paginas/login.js"></script>
+</body>
+</html>

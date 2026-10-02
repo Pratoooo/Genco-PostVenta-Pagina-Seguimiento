@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/css/estilos.css">
 </head>
 <body>
   <header class="site-header">
@@ -75,40 +75,6 @@
     </div>
   </footer>
 
-  <script src="/common.js"></script>
-  <script>
-    document.getElementById('anio').textContent = new Date().getFullYear();
-    // Con sesión iniciada, el botón lleva directo a su sección.
-    sesionActual().then((u) => {
-      if (!u) return;
-      const btn = document.getElementById('btn-ingresar');
-      btn.href = u.destino;
-      btn.textContent = u.rol === 'admin' ? 'Panel admin' : 'Mis pedidos';
-      document.getElementById('btn-registro').remove();
-    });
-    document.querySelectorAll('[data-icono]').forEach((el) => (el.innerHTML = icono(el.dataset.icono)));
-
-    const form = document.getElementById('form-buscar');
-    const resultado = document.getElementById('resultado');
-    const msg = document.getElementById('msg');
-    form.addEventListener('submit', async (ev) => {
-      ev.preventDefault();
-      const btn = form.querySelector('button');
-      btn.disabled = true;
-      alerta(msg, '', '');
-      try {
-        const s = await api('/api/seguimiento', { method: 'POST', body: Object.fromEntries(new FormData(form)) });
-        resultado.innerHTML = renderSeguimiento(s);
-        document.getElementById('como').classList.add('hidden');
-        resultado.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } catch (err) {
-        resultado.innerHTML = '';
-        document.getElementById('como').classList.remove('hidden');
-        alerta(msg, 'error', err.message);
-      } finally {
-        btn.disabled = false;
-      }
-    });
-  </script>
+  <script type="module" src="/js/paginas/consulta.js"></script>
 </body>
 </html>

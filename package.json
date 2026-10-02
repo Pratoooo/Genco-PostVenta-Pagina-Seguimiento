@@ -4,10 +4,11 @@
   "private": true,
   "description": "Seguimiento de pedidos de siniestros de Grupo Genco: consulta por siniestro y patente, portal de talleres y peritos, y panel de administración.",
   "type": "module",
-  "main": "server.js",
+  "main": "backend/servidor.js",
   "scripts": {
-    "start": "node --env-file-if-exists=.env server.js",
-    "dev": "node --watch --env-file-if-exists=.env server.js"
+    "start": "node --env-file-if-exists=.env backend/servidor.js",
+    "dev": "node --watch --env-file-if-exists=.env backend/servidor.js",
+    "probar-mail": "node --env-file-if-exists=.env backend/scripts/probar-mail.js"
   },
   "engines": {
     "node": ">=22.13"

@@ -86,6 +86,9 @@ input:focus, select:focus { outline: none; background: #fff; border-color: var(-
 .alert { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; margin-top: 16px; font-size: .95rem; }
 .alert.error { background: var(--error-soft); color: var(--error); }
 .alert.ok { background: var(--ok-soft); color: var(--ok); }
+.alert.info { background: var(--brand-soft); color: var(--brand); }
+.alert .btn { margin-left: auto; height: 36px; padding: 0 14px; font-size: .88rem; box-shadow: none; }
+.alert { align-items: center; flex-wrap: wrap; }
 
 /* ------------------------------------------------ Cómo funciona */
 .section-title { font-size: .8rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 40px 0 14px; font-family: var(--font); }

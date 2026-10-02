@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/css/estilos.css">
 </head>
 <body class="cargando">
   <header class="site-header">
@@ -132,7 +132,7 @@
       <div class="card">
         <div class="table-wrap" style="margin-top:0">
           <table class="tabla-resp">
-            <thead><tr><th>Nombre</th><th>Taller / Compañías</th><th>Usuario</th><th>Rol</th><th>Pedidos</th><th>Estado</th><th>Alta</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Taller / Compañías</th><th>Email</th><th>Rol</th><th>Pedidos</th><th>Estado</th><th>Alta</th></tr></thead>
             <tbody id="tabla-usuarios"></tbody>
           </table>
         </div>
@@ -157,10 +157,8 @@
             <datalist id="u-companias"></datalist>
             <div class="hint">Puede trabajar para varias compañías.</div></div>
           <div><label for="u-nombre">Nombre y apellido *</label><input id="u-nombre" name="nombre" required placeholder="Ej: Juan Pérez"></div>
-          <div><label for="u-email">Email</label><input id="u-email" name="email" type="email" autocapitalize="none" spellcheck="false" placeholder="nombre@ejemplo.com">
-            <div class="hint">Para que pueda recuperar la contraseña.</div></div>
-          <div><label for="u-usuario">Usuario para ingresar *</label><input id="u-usuario" name="usuario" required autocapitalize="none" spellcheck="false" placeholder="Ej: tallernorte">
-            <div class="hint">Sin espacios. También puede ingresar con el email.</div></div>
+          <div><label for="u-email">Email *</label><input id="u-email" name="email" type="email" required autocapitalize="none" spellcheck="false" placeholder="nombre@ejemplo.com">
+            <div class="hint">Con este email ingresa y recupera la contraseña.</div></div>
           <div><label for="u-password" id="u-password-label">Contraseña *</label>
             <div class="row">
               <input class="grow" id="u-password" name="password" type="text" autocomplete="new-password" minlength="8">
@@ -186,7 +184,6 @@
     </div>
   </footer>
 
-  <script src="/common.js"></script>
-  <script src="/admin.js"></script>
+  <script type="module" src="/js/paginas/admin/main.js"></script>
 </body>
 </html>

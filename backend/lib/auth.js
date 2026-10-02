@@ -1,20 +1,28 @@
+// Contraseñas y sesiones.
+//
+// Cada navegador tiene su propia sesión (una cookie firmada), así que varias personas pueden usar la
+// misma cuenta al mismo tiempo desde distintas computadoras sin cerrarse la sesión entre ellas.
+// El hash de la contraseña entra en la firma: si alguien cambia la contraseña de la cuenta, se cierran
+// todas sus sesiones abiertas y hay que ingresar con la nueva.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { db, dataDir } from './db.js';
-
-export const ROLES = { admin: 'Administrador', perito: 'Perito', taller: 'Taller' };
+import { config } from '../config.js';
+import { db } from '../db/conexion.js';
+import { HttpError } from './errores.js';
 
 const COOKIE = 'genco_sesion';
 const DURACION_MS = 12 * 60 * 60 * 1000;
-const SECURE = process.env.COOKIE_SECURE === '1' ? '; Secure' : '';
+const SECURE = config.sesion.cookieSegura ? '; Secure' : '';
 
-// Si no se define SESSION_SECRET, se genera uno y se guarda para que las sesiones sobrevivan reinicios.
-const SECRET = process.env.SESSION_SECRET || (() => {
-  const archivo = path.join(dataDir, 'session-secret');
+// Sin SESSION_SECRET se genera uno y se guarda, para que las sesiones sobrevivan a los reinicios.
+const SECRETO = config.sesion.secreto || (() => {
+  const archivo = path.join(config.dirDatos, 'session-secret');
   if (!fs.existsSync(archivo)) fs.writeFileSync(archivo, crypto.randomBytes(32).toString('hex'), { mode: 0o600 });
   return fs.readFileSync(archivo, 'utf8').trim();
 })();
+
+// ---------------------------------------------------------------- Contraseñas
 
 export function hashPassword(password) {
   const salt = crypto.randomBytes(16);
@@ -22,20 +30,25 @@ export function hashPassword(password) {
   return `scrypt$${salt.toString('hex')}$${hash.toString('hex')}`;
 }
 
-export function verifyPassword(password, stored) {
-  const [alg, salt, hash] = String(stored).split('$');
+export function verifyPassword(password, guardado) {
+  const [alg, salt, hash] = String(guardado).split('$');
   if (alg !== 'scrypt' || !salt || !hash) return false;
   const esperado = Buffer.from(hash, 'hex');
   const calculado = crypto.scryptSync(String(password), Buffer.from(salt, 'hex'), esperado.length);
   return crypto.timingSafeEqual(calculado, esperado);
 }
 
-// Se usa cuando el usuario no existe, para que la respuesta tarde lo mismo.
+// Se usa cuando la cuenta no existe, para que la respuesta tarde lo mismo.
 export const HASH_FALSO = hashPassword(crypto.randomBytes(8).toString('hex'));
 
-// El hash de la contraseña entra en la firma: al cambiarla, se cierran las sesiones abiertas.
+export function validarPassword(password) {
+  if (String(password).length < 8) throw new HttpError(400, 'La contraseña debe tener al menos 8 caracteres.');
+}
+
+// ---------------------------------------------------------------- Sesiones
+
 const firmar = (uid, exp, passwordHash) =>
-  crypto.createHmac('sha256', SECRET).update(`${uid}.${exp}.${passwordHash}`).digest('hex');
+  crypto.createHmac('sha256', SECRETO).update(`${uid}.${exp}.${passwordHash}`).digest('hex');
 
 export function crearSesion(res, usuario) {
   const exp = Date.now() + DURACION_MS;
@@ -66,16 +79,3 @@ export const requireRol = (...roles) => (req, res, next) => {
   req.usuario = usuario;
   next();
 };
-
-export const usuarioPublico = (u) => ({
-  id: u.id, usuario: u.usuario, nombre: u.nombre, empresa: u.empresa, rol: u.rol, rol_nombre: ROLES[u.rol],
-});
-
-// Primer arranque: crea el usuario "admin" si no hay ningún administrador.
-export function asegurarAdmin() {
-  if (db.prepare("SELECT 1 FROM usuarios WHERE rol = 'admin'").get()) return;
-  const password = process.env.ADMIN_PASSWORD || 'genco-admin';
-  db.prepare("INSERT INTO usuarios (usuario, nombre, rol, password_hash) VALUES ('admin', 'Administrador', 'admin', ?)")
-    .run(hashPassword(password));
-  console.warn(`⚠ Se creó el usuario "admin"${process.env.ADMIN_PASSWORD ? ' con la contraseña de ADMIN_PASSWORD' : ' con contraseña "genco-admin"'}. Cambiala al ingresar.`);
-}

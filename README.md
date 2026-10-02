@@ -1,48 +1,71 @@
 # Genco Siniestros — Seguimiento de pedidos
 
-Página de seguimiento de pedidos de repuestos de Grupo Genco.
+Página de seguimiento de pedidos de repuestos por siniestro de Grupo Genco.
 
-- **Iniciar sesión** (`/`, `/login`): es lo primero que se ve al entrar. Un único ingreso que detecta el rol del usuario y lo lleva a su sección:
+- **Iniciar sesión** (`/`, `/login`): es lo primero que se ve. Se ingresa con **email y contraseña** y la página lleva a cada uno a su sección:
   - **Talleres** y **peritos** → `/mis-pedidos`: ven solo los pedidos que tienen asignados.
-  - **Administradores** → `/admin`: cargan y actualizan pedidos, y gestionan los usuarios.
-- **Registrarse** (botón al lado de *Ingresar*): talleres y peritos crean su cuenta eligiendo el tipo de usuario. Se pide nombre y apellido, email, usuario y contraseña, y a los talleres también el **nombre del taller**. A los peritos no se les pide compañía: como pueden trabajar para varias, las carga el admin en su ficha. La cuenta queda **pendiente** hasta que un admin la aprueba en *Administración → Usuarios*.
-- **¿Olvidaste tu contraseña?**: se ingresa el usuario o email y llega un mail con un enlace (vence en 1 hora, sirve una sola vez) para crear una contraseña nueva. Se puede ingresar con el usuario o con el email.
-- **Consulta sin cuenta** (`/consulta`): cualquier persona ve el estado de un pedido con el **número de siniestro** y la **patente**.
+  - **Administradores** → `/admin`: cargan y actualizan pedidos, y gestionan las cuentas.
+- **Registrarse**: talleres y peritos crean su cuenta con nombre y apellido, email y contraseña (los talleres, además, el nombre del taller). La cuenta queda **pendiente** hasta que un admin la aprueba. A los peritos el admin les carga sus compañías de seguro.
+- **¿Olvidaste tu contraseña?**: llega un mail con un enlace (vence en 1 hora y sirve una sola vez) para crear una nueva.
+- **Consulta sin cuenta** (`/consulta`): el estado de un pedido con el número de siniestro y la patente.
 
 ## Cómo correrlo
 
-Requiere Node.js 22.13 o superior (usa SQLite integrado, sin instalar base de datos).
+Requiere Node.js 22.13 o superior (usa SQLite integrado, no hay que instalar base de datos).
 
 ```bash
 npm install
-cp .env.example .env   # y completar ADMIN_PASSWORD
+cp .env.example .env   # y completar (ver abajo)
 npm start
 ```
 
-En el primer arranque se crea el usuario **`admin`** con la contraseña de `ADMIN_PASSWORD` (o `genco-admin` si no está definida). Conviene cambiarla apenas se ingresa: menú de usuario → *Cambiar contraseña*.
+La página queda en http://localhost:3000. En el primer arranque se crea la cuenta de administración con `ADMIN_EMAIL` / `ADMIN_PASSWORD`; conviene cambiar la contraseña al ingresar (menú de usuario → *Cambiar contraseña*).
 
-Los datos quedan en `data/` (base `genco.db` y la clave de sesiones).
+## Mails de recuperación con Gmail
 
-### Mails de recuperación de contraseña
+1. Usar una cuenta de Gmail de la empresa (por ejemplo la de la oficina) y activarle la **verificación en 2 pasos**.
+2. Entrar a https://myaccount.google.com/apppasswords, crear una contraseña de aplicación (nombre: "Genco Siniestros") y copiar las 16 letras.
+3. Completar en `.env`:
+   ```
+   GMAIL_USUARIO=cuenta@gmail.com
+   GMAIL_CLAVE_APP=abcd efgh ijkl mnop
+   APP_URL=http://localhost:3000   # o la dirección pública cuando esté publicada
+   ```
+4. Probar el envío: `npm run probar-mail -- tu-email@ejemplo.com`
+5. Reiniciar la página. Al arrancar muestra `✓ Gmail listo` o explica qué está mal.
 
-Para que se envíen los mails hay que completar en `.env` los datos de una cuenta de correo (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`) y la dirección pública de la página en `APP_URL`. Con Gmail se usa `smtp.gmail.com`, puerto `465` y una *contraseña de aplicación* de Google.
+Sin Gmail configurado, el contenido de los mails se muestra en la consola del servidor.
 
-Mientras no esté configurado, el contenido del mail (con el enlace) se muestra en la consola del servidor. Los usuarios sin email cargado pueden pedirle a un admin que les cambie la contraseña desde *Usuarios*.
+## Cuentas compartidas
 
-## Usuarios y permisos
+Varias personas pueden usar la misma cuenta a la vez desde distintas computadoras (por ejemplo, los administradores de la oficina):
 
-| Rol           | Ve                                   | Puede |
-|---------------|--------------------------------------|-------|
-| Administrador | Todos los pedidos y usuarios         | Crear/editar pedidos y estados, crear/editar/desactivar usuarios |
-| Taller        | Pedidos donde es el taller asignado  | Solo consultar |
-| Perito        | Pedidos donde es el perito asignado  | Solo consultar |
+- Cada computadora tiene su propia sesión; ingresar en una no cierra la sesión de las otras.
+- Si dos personas editan el mismo pedido o la misma cuenta al mismo tiempo, la segunda en guardar recibe un aviso y un botón para recargar, en lugar de pisar sin querer los cambios de la otra.
+- Las listas se actualizan solas cada minuto y al volver a la pestaña.
+- Si alguien cambia la contraseña de la cuenta, a los demás se les cierra la sesión y tienen que ingresar con la nueva.
+- El bloqueo por contraseñas mal puestas es por cuenta y conexión, con margen (15 intentos en 15 minutos) para que los errores de tipeo de una persona no dejen afuera a toda la oficina.
 
-- Los talleres y peritos se registran solos (quedan pendientes de aprobación) o los admins les crean la cuenta en **Administración → Usuarios**. En la ficha de un perito el admin carga sus **compañías de seguro** (puede tener varias).
-- A cada pedido se le asigna su taller y su perito con un buscador: el taller se busca por el nombre del taller y el perito por su nombre (no por compañía).
-- Desde una misma conexión se pueden crear hasta 10 cuentas por hora.
-- Desactivar un usuario o cambiarle la contraseña cierra sus sesiones abiertas.
-- Después de 8 intentos fallidos de ingreso, ese usuario queda bloqueado 15 minutos desde esa IP.
-- En producción con HTTPS, poner `COOKIE_SECURE=1`.
+## Estructura del código
+
+```
+backend/
+  servidor.js         Punto de entrada (npm start)
+  app.js              Arma Express: API en /api y el frontend como archivos estáticos
+  config.js           Variables de entorno (.env)
+  db/                 Conexión SQLite y migraciones del esquema (versionadas)
+  lib/                Sesiones y contraseñas, mails (Gmail), errores, límites de intentos, validaciones
+  modelos/            Reglas y consultas: pedidos, usuarios, recuperación de contraseña
+  rutas/              Endpoints: público, auth, portal (mis pedidos), admin
+  scripts/            probar-mail.js
+frontend/
+  *.html              Páginas: login, consulta, mis-pedidos, admin
+  css/estilos.css
+  img/                Logos de Genco y Stellantis
+  js/comun/           Llamadas a la API, utilidades de interfaz, sesión, tarjeta de seguimiento
+  js/paginas/         Código de cada página (el panel admin dividido en pedidos, usuarios y componentes)
+data/                 Base de datos (no se sube a git)
+```
 
 ## Estados del pedido
 
