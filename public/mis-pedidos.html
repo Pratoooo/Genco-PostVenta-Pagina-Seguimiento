@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Mis pedidos — Grupo Genco Siniestros</title>
+  <meta name="theme-color" content="#253883">
+  <link rel="icon" href="/img/genco.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="cargando">
+  <header class="site-header">
+    <div class="container">
+      <a class="logos" href="/mis-pedidos" aria-label="Mis pedidos — inicio">
+        <img class="logo-genco" src="/img/genco.png" alt="Grupo Genco">
+      </a>
+      <div class="header-right">
+        <div id="menu-usuario"></div>
+        <span class="divider" aria-hidden="true"></span>
+        <img class="logo-stellantis ocultar-movil" src="/img/stellantis.png" alt="Stellantis">
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Lista -->
+    <section id="view-lista">
+      <div class="page-head">
+        <div>
+          <h1>Mis pedidos</h1>
+          <p id="subtitulo"></p>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><span>Total</span><strong id="st-total">–</strong></div>
+        <div class="stat"><span>En curso</span><strong id="st-curso">–</strong></div>
+        <div class="stat ok"><span>Recibidos</span><strong id="st-recibidos">–</strong></div>
+      </div>
+      <div class="card">
+        <label for="buscar">Buscar</label>
+        <input id="buscar" placeholder="Siniestro, patente, vehículo o compañía">
+        <div class="table-wrap">
+          <table class="tabla-resp">
+            <thead><tr><th>Siniestro</th><th>Patente</th><th>Vehículo</th><th id="th-otro"></th><th>Compañía</th><th>Estado</th><th>Actualizado</th></tr></thead>
+            <tbody id="tabla"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Detalle -->
+    <section id="view-detalle" class="hidden">
+      <a class="back" href="#/">← Mis pedidos</a>
+      <div id="detalle" style="margin-top:16px"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <span>Grupo Genco · Siniestros</span>
+      <img src="/img/stellantis.png" alt="Stellantis">
+    </div>
+  </footer>
+
+  <script src="/common.js"></script>
+  <script>
+    const $ = (s) => document.querySelector(s);
+    let usuario = null;
+    let pedidos = [];
+
+    function pintarLista() {
+      const q = $('#buscar').value.trim().toLowerCase();
+      const otro = usuario.rol === 'perito' ? 'taller' : 'perito';
+      const filas = pedidos.filter((p) =>
+        !q || [p.siniestro, p.patente, p.vehiculo, p.compania, p[otro]].some((v) => String(v ?? '').toLowerCase().includes(q)));
+      $('#tabla').innerHTML = filas.length
+        ? filas.map((p) => `<tr class="clickable" data-id="${p.id}">
+            ${celda('Siniestro', `<strong>${esc(p.siniestro)}</strong>`)}${celda('Patente', esc(p.patente))}
+            ${celda('Vehículo', esc(p.vehiculo))}${celda(otro === 'taller' ? 'Taller' : 'Perito', esc(p[otro]))}
+            ${celda('Compañía', esc(p.compania))}${celda('Estado', pillEstado(p, true))}
+            ${celda('Actualizado', `<span class="small muted">${fecha(p.updated_at)}</span>`)}</tr>`).join('')
+        : `<tr><td colspan="7" class="empty">${pedidos.length ? 'Ningún pedido coincide con la búsqueda.' : 'Todavía no tenés pedidos asignados.'}</td></tr>`;
+    }
+
+    async function cargarLista() {
+      pedidos = await apiPrivada('/api/mis-pedidos');
+      $('#st-total').textContent = pedidos.length;
+      $('#st-recibidos').textContent = pedidos.filter((p) => p.recibido).length;
+      $('#st-curso').textContent = pedidos.filter((p) => !p.recibido).length;
+      pintarLista();
+    }
+
+    async function route() {
+      const m = location.hash.match(/^#\/pedido\/(\d+)/);
+      $('#view-lista').classList.toggle('hidden', Boolean(m));
+      $('#view-detalle').classList.toggle('hidden', !m);
+      try {
+        if (m) {
+          $('#detalle').innerHTML = '<div class="card muted">Cargando…</div>';
+          $('#detalle').innerHTML = renderSeguimiento(await apiPrivada(`/api/mis-pedidos/${m[1]}`));
+          scrollTo(0, 0);
+        } else {
+          await cargarLista();
+        }
+      } catch (err) {
+        if (err.status === 401) return;
+        const aviso = `<div class="alert error">${esc(err.message)}</div>`;
+        if (m) $('#detalle').innerHTML = aviso;
+        else $('#tabla').innerHTML = `<tr><td colspan="7">${aviso}</td></tr>`;
+      }
+    }
+
+    $('#buscar').addEventListener('input', pintarLista);
+    $('#tabla').addEventListener('click', (ev) => {
+      const tr = ev.target.closest('tr[data-id]');
+      if (tr) location.hash = `#/pedido/${tr.dataset.id}`;
+    });
+    window.addEventListener('hashchange', route);
+
+    exigirSesion(['perito', 'taller']).then((u) => {
+      if (!u) return;
+      usuario = u;
+      $('#subtitulo').textContent = u.rol === 'taller'
+        ? `Pedidos asignados a ${u.empresa || u.nombre}`
+        : `Pedidos asignados a ${u.nombre}${u.empresa ? ` · ${u.empresa}` : ''}`;
+      $('#th-otro').textContent = u.rol === 'perito' ? 'Taller' : 'Perito';
+      route();
+    });
+  </script>
+</body>
+</html>

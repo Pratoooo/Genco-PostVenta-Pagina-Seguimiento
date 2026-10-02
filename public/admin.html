@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Administración — Grupo Genco Siniestros</title>
+  <meta name="theme-color" content="#253883">
+  <link rel="icon" href="/img/genco.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="cargando">
+  <header class="site-header">
+    <div class="container">
+      <a class="logos" href="/admin" aria-label="Administración — inicio">
+        <img class="logo-genco" src="/img/genco.png" alt="Grupo Genco">
+        <span class="header-tag">Administración</span>
+      </a>
+      <div class="header-right">
+        <div id="menu-usuario"></div>
+        <span class="divider" aria-hidden="true"></span>
+        <img class="logo-stellantis ocultar-movil" src="/img/stellantis.png" alt="Stellantis">
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <nav class="tabs" aria-label="Secciones" style="margin-top:28px">
+      <a href="#/" data-tab="pedidos">Pedidos</a>
+      <a href="#/usuarios" data-tab="usuarios">Usuarios<span class="tab-count hidden" id="tab-pendientes" title="Cuentas pendientes de aprobación"></span></a>
+    </nav>
+
+    <!-- Lista de pedidos -->
+    <section id="view-pedidos" class="hidden">
+      <div class="page-head">
+        <h1>Pedidos</h1>
+        <a class="btn" href="#/pedidos/nuevo">+ Nuevo pedido</a>
+      </div>
+      <div class="card">
+        <label for="buscar">Buscar</label>
+        <input id="buscar" placeholder="Siniestro, patente, taller, perito o compañía">
+        <div class="table-wrap">
+          <table class="tabla-resp">
+            <thead><tr><th>Siniestro</th><th>Patente</th><th>Vehículo</th><th>Taller</th><th>Perito</th><th>Compañía</th><th>Estado</th><th>Actualizado</th></tr></thead>
+            <tbody id="tabla-pedidos"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Alta / edición de pedido -->
+    <section id="view-pedido" class="hidden">
+      <a class="back" href="#/">← Todos los pedidos</a>
+      <div class="page-head" style="margin-top:12px"><h1 id="pedido-titulo">Nuevo pedido</h1></div>
+      <form id="form-pedido">
+        <div class="card">
+          <h3>Datos del pedido</h3>
+          <div class="grid" style="margin-top:14px">
+            <div><label for="f-siniestro">N° de siniestro *</label><input id="f-siniestro" name="siniestro" required></div>
+            <div><label for="f-patente">Patente *</label><input id="f-patente" name="patente" class="upper" required placeholder="AB123CD"></div>
+            <div><label for="f-taller">Taller</label>
+              <div class="combo" id="combo-taller">
+                <input id="f-taller" type="text" placeholder="Buscar por nombre del taller…" autocomplete="off"
+                  role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="f-taller-lista">
+                <input type="hidden" name="taller_id">
+                <button type="button" class="combo-quitar hidden" aria-label="Quitar taller">×</button>
+                <ul class="combo-lista hidden" id="f-taller-lista" role="listbox"></ul>
+              </div>
+              <div class="hint">Ve el pedido desde su cuenta. <a href="#/usuarios/nuevo">Crear taller</a></div></div>
+            <div><label for="f-perito">Perito</label>
+              <div class="combo" id="combo-perito">
+                <input id="f-perito" type="text" placeholder="Buscar por nombre del perito…" autocomplete="off"
+                  role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="f-perito-lista">
+                <input type="hidden" name="perito_id">
+                <button type="button" class="combo-quitar hidden" aria-label="Quitar perito">×</button>
+                <ul class="combo-lista hidden" id="f-perito-lista" role="listbox"></ul>
+              </div>
+              <div class="hint">Ve el pedido desde su cuenta. <a href="#/usuarios/nuevo">Crear perito</a></div></div>
+            <div><label for="f-compania">Compañía de seguro</label><input id="f-compania" name="compania"></div>
+            <div><label for="f-vehiculo">Vehículo</label><input id="f-vehiculo" name="vehiculo" placeholder="Marca, modelo y año"></div>
+            <div><label for="f-cantidad">Cantidad de piezas</label><input id="f-cantidad" name="cantidad_piezas" type="number" min="0"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Estado del pedido</h3>
+          <div class="grid" style="margin-top:14px">
+            <div><label for="f-origen">1 · Origen</label><select id="f-origen" name="origen"></select></div>
+            <div></div>
+            <div><label for="f-despacho">2 · Despacho</label><select id="f-despacho" name="despacho"></select></div>
+            <div><label for="f-remito">N° de remito</label><input id="f-remito" name="remito"></div>
+            <div><label for="f-transporte">3 · Expreso</label><select id="f-transporte" name="transporte"></select></div>
+            <div><label for="f-guia">N° de guía</label><input id="f-guia" name="guia"></div>
+            <div><label for="f-viaje">Estado del viaje</label><input id="f-viaje" name="estado_viaje" list="estados-viaje" placeholder="Ej: En viaje"></div>
+            <div><label for="f-entrega">4 · Entrega</label><select id="f-entrega" name="entrega"></select></div>
+          </div>
+          <datalist id="estados-viaje">
+            <option>En preparación</option><option>Retirado por el expreso</option><option>En viaje</option>
+            <option>En sucursal de destino</option><option>En reparto</option>
+          </datalist>
+          <div class="row" style="margin-top:24px;justify-content:space-between;align-items:center">
+            <button class="btn danger hidden" type="button" id="borrar-pedido">Eliminar pedido</button>
+            <button class="btn" type="submit" style="margin-left:auto">Guardar cambios</button>
+          </div>
+          <div id="pedido-msg"></div>
+        </div>
+      </form>
+
+      <div id="vista-previa" class="hidden">
+        <h2 class="section-title">Así lo ve el cliente</h2>
+        <div id="preview"></div>
+      </div>
+    </section>
+
+    <!-- Lista de usuarios -->
+    <section id="view-usuarios" class="hidden">
+      <div class="page-head">
+        <div>
+          <h1>Usuarios</h1>
+          <p>Cuentas de talleres, peritos y administradores.</p>
+        </div>
+        <a class="btn" href="#/usuarios/nuevo">+ Nuevo usuario</a>
+      </div>
+      <div class="card pendientes-card hidden" id="pendientes">
+        <h3>Solicitudes de registro</h3>
+        <p class="muted small" style="margin:0 0 6px">Talleres y peritos que se registraron desde la página. Verificá que sean quienes dicen ser antes de aprobarlos.</p>
+        <div id="lista-pendientes"></div>
+      </div>
+      <div class="card">
+        <div class="table-wrap" style="margin-top:0">
+          <table class="tabla-resp">
+            <thead><tr><th>Nombre</th><th>Taller / Compañías</th><th>Usuario</th><th>Rol</th><th>Pedidos</th><th>Estado</th><th>Alta</th></tr></thead>
+            <tbody id="tabla-usuarios"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Alta / edición de usuario -->
+    <section id="view-usuario" class="hidden">
+      <a class="back" href="#/usuarios">← Todos los usuarios</a>
+      <div class="page-head" style="margin-top:12px"><h1 id="usuario-titulo">Nuevo usuario</h1></div>
+      <form id="form-usuario" class="card" autocomplete="off">
+        <div class="aviso-pendiente hidden" id="aviso-pendiente">
+          <span><strong>Pendiente de aprobación.</strong> Se registró desde la página y todavía no puede ingresar.</span>
+          <button class="btn sm" type="button" id="aprobar-usuario">Guardar y aprobar</button>
+        </div>
+        <div class="grid">
+          <div><label for="u-rol">Rol *</label><select id="u-rol" name="rol" required></select></div>
+          <div id="u-taller-campo"><label for="u-empresa">Nombre del taller</label>
+            <input id="u-empresa" placeholder="Ej: Taller Norte"></div>
+          <div id="u-companias-campo" class="hidden"><label for="u-compania">Compañías de seguro</label>
+            <div class="chips-input" id="u-chips"><input id="u-compania" list="u-companias" autocomplete="off" placeholder="Escribí y presioná Enter"></div>
+            <datalist id="u-companias"></datalist>
+            <div class="hint">Puede trabajar para varias compañías.</div></div>
+          <div><label for="u-nombre">Nombre y apellido *</label><input id="u-nombre" name="nombre" required placeholder="Ej: Juan Pérez"></div>
+          <div><label for="u-email">Email</label><input id="u-email" name="email" type="email" autocapitalize="none" spellcheck="false" placeholder="nombre@ejemplo.com">
+            <div class="hint">Para que pueda recuperar la contraseña.</div></div>
+          <div><label for="u-usuario">Usuario para ingresar *</label><input id="u-usuario" name="usuario" required autocapitalize="none" spellcheck="false" placeholder="Ej: tallernorte">
+            <div class="hint">Sin espacios. También puede ingresar con el email.</div></div>
+          <div><label for="u-password" id="u-password-label">Contraseña *</label>
+            <div class="row">
+              <input class="grow" id="u-password" name="password" type="text" autocomplete="new-password" minlength="8">
+              <button class="btn outline" type="button" id="generar" style="height:52px">Generar</button>
+            </div>
+            <div class="hint" id="u-password-hint">Mínimo 8 caracteres. Compartila con la persona para que ingrese.</div></div>
+          <div><label class="check"><input type="checkbox" name="activo" id="u-activo" checked> Usuario activo</label>
+            <div class="hint">Si está inactivo no puede iniciar sesión.</div></div>
+        </div>
+        <div class="row" style="margin-top:24px;justify-content:space-between;align-items:center">
+          <button class="btn danger hidden" type="button" id="borrar-usuario">Eliminar usuario</button>
+          <button class="btn" type="submit" style="margin-left:auto">Guardar</button>
+        </div>
+        <div id="usuario-msg"></div>
+      </form>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <span>Grupo Genco · Siniestros</span>
+      <img src="/img/stellantis.png" alt="Stellantis">
+    </div>
+  </footer>
+
+  <script src="/common.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

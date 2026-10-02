@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seguimiento de pedidos — Grupo Genco Siniestros</title>
+  <meta name="description" content="Consultá el estado de tu pedido de repuestos con tu número de siniestro y patente.">
+  <meta name="theme-color" content="#253883">
+  <link rel="icon" href="/img/genco.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="logos" href="/consulta" aria-label="Grupo Genco — consulta de pedidos">
+        <img class="logo-genco" src="/img/genco.png" alt="Grupo Genco">
+      </a>
+      <div class="header-right">
+        <img class="logo-stellantis ocultar-movil" src="/img/stellantis.png" alt="Stellantis">
+        <span class="divider" aria-hidden="true"></span>
+        <div class="acciones-sesion">
+          <a class="btn outline" href="/login" id="btn-ingresar">Ingresar</a>
+          <a class="btn sm" href="/login#registro" id="btn-registro">Registrarse</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <span class="eyebrow">Siniestros · Seguimiento de pedidos</span>
+        <h1>¿Dónde está tu pedido?</h1>
+        <p>Ingresá tu número de siniestro y la patente del vehículo para ver en qué etapa están tus repuestos.</p>
+      </div>
+    </section>
+
+    <div class="container">
+      <section class="card search-card">
+        <h2>Consultá el estado</h2>
+        <form id="form-buscar">
+          <div class="search-row">
+            <div><label for="siniestro">N° de siniestro</label><input id="siniestro" name="siniestro" required autocomplete="off" placeholder="Ej: 123456"></div>
+            <div><label for="patente">Patente</label><input id="patente" name="patente" class="upper" required autocomplete="off" placeholder="AB123CD"></div>
+            <button class="btn" type="submit">
+              Consultar
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </form>
+        <div id="msg"></div>
+      </section>
+
+      <div id="resultado" aria-live="polite"></div>
+
+      <section id="como">
+        <h2 class="section-title">Cómo seguimos tu pedido</h2>
+        <ol class="how how-list">
+          <li><div class="ico" data-icono="origen"></div><strong>Stock o fábrica</strong><span>Verificamos si las piezas están en stock o las pedimos a fábrica.</span></li>
+          <li><div class="ico" data-icono="despacho"></div><strong>Despacho</strong><span>Preparamos tu pedido y emitimos el remito, parcial o total.</span></li>
+          <li><div class="ico" data-icono="expreso"></div><strong>Expreso</strong><span>Lo enviamos por expreso con su número de guía.</span></li>
+          <li><div class="ico" data-icono="entrega"></div><strong>Entrega</strong><span>Seguí el viaje hasta que el pedido llegue a destino.</span></li>
+        </ol>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <span>© <span id="anio"></span> Grupo Genco · Siniestros</span>
+      <img src="/img/stellantis.png" alt="Stellantis">
+    </div>
+  </footer>
+
+  <script src="/common.js"></script>
+  <script>
+    document.getElementById('anio').textContent = new Date().getFullYear();
+    // Con sesión iniciada, el botón lleva directo a su sección.
+    sesionActual().then((u) => {
+      if (!u) return;
+      const btn = document.getElementById('btn-ingresar');
+      btn.href = u.destino;
+      btn.textContent = u.rol === 'admin' ? 'Panel admin' : 'Mis pedidos';
+      document.getElementById('btn-registro').remove();
+    });
+    document.querySelectorAll('[data-icono]').forEach((el) => (el.innerHTML = icono(el.dataset.icono)));
+
+    const form = document.getElementById('form-buscar');
+    const resultado = document.getElementById('resultado');
+    const msg = document.getElementById('msg');
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const btn = form.querySelector('button');
+      btn.disabled = true;
+      alerta(msg, '', '');
+      try {
+        const s = await api('/api/seguimiento', { method: 'POST', body: Object.fromEntries(new FormData(form)) });
+        resultado.innerHTML = renderSeguimiento(s);
+        document.getElementById('como').classList.add('hidden');
+        resultado.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (err) {
+        resultado.innerHTML = '';
+        document.getElementById('como').classList.remove('hidden');
+        alerta(msg, 'error', err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

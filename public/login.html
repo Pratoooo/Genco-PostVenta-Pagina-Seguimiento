@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Iniciar sesión — Grupo Genco Siniestros</title>
+  <meta name="description" content="Seguimiento de pedidos de siniestros de Grupo Genco para talleres y peritos.">
+  <meta name="theme-color" content="#253883">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="/img/genco.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="auth-page">
+    <div style="width:100%;max-width:460px">
+      <section class="auth-card">
+        <img class="logo-genco" src="/img/genco.png" alt="Grupo Genco">
+
+        <!-- Ingresar -->
+        <div id="view-login" data-vista>
+          <h1>Iniciar sesión</h1>
+          <p class="sub">Seguimiento de pedidos para talleres y peritos</p>
+          <form id="form-login" novalidate>
+            <div class="field">
+              <label for="usuario">Usuario o email</label>
+              <input id="usuario" name="usuario" autocomplete="username" autocapitalize="none" spellcheck="false">
+            </div>
+            <div class="field">
+              <div class="label-row">
+                <label for="password">Contraseña</label>
+                <a class="link-btn small" href="#recuperar">¿Olvidaste tu contraseña?</a>
+              </div>
+              <div class="input-wrap">
+                <input id="password" name="password" type="password" autocomplete="current-password">
+                <button type="button" class="toggle" data-ver="password" aria-label="Mostrar contraseña" aria-pressed="false"></button>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn" type="submit">Ingresar</button>
+              <a class="btn outline" href="#registro">Registrarse</a>
+            </div>
+          </form>
+          <div id="login-msg"></div>
+        </div>
+
+        <!-- Registrarse -->
+        <div id="view-registro" class="hidden" data-vista>
+          <h1>Crear cuenta</h1>
+          <p class="sub">Completá tus datos para registrarte</p>
+          <form id="form-registro" novalidate>
+            <fieldset style="border:0;padding:0;margin:0">
+              <legend style="font-weight:600;font-size:.85rem;margin-bottom:8px;padding:0">¿Qué tipo de usuario sos?</legend>
+              <div class="roles">
+                <div class="rol-opcion">
+                  <input type="radio" name="rol" value="taller" id="rol-taller">
+                  <label for="rol-taller"><span class="ico" data-icono="taller"></span><strong>Taller</strong><small>Veo los pedidos de mi taller</small></label>
+                </div>
+                <div class="rol-opcion">
+                  <input type="radio" name="rol" value="perito" id="rol-perito">
+                  <label for="rol-perito"><span class="ico" data-icono="perito"></span><strong>Perito</strong><small>Veo los pedidos que tengo asignados</small></label>
+                </div>
+              </div>
+            </fieldset>
+            <div class="field hidden" id="campo-empresa" style="margin-top:16px">
+              <label for="r-empresa">Nombre del taller</label>
+              <input id="r-empresa" name="empresa" autocomplete="organization" placeholder="Ej: Taller Norte">
+            </div>
+            <div class="field" style="margin-top:16px">
+              <label for="r-nombre">Nombre y apellido</label>
+              <input id="r-nombre" name="nombre" autocomplete="name" placeholder="Ej: Juan Pérez">
+            </div>
+            <div class="field">
+              <label for="r-email">Email</label>
+              <input id="r-email" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="nombre@ejemplo.com">
+              <div class="hint">Lo usamos para que puedas recuperar tu contraseña.</div>
+            </div>
+            <div class="field">
+              <label for="r-usuario">Nombre de usuario</label>
+              <input id="r-usuario" name="usuario" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Ej: jperez">
+              <div class="hint">Lo vas a usar para ingresar. Sin espacios.</div>
+            </div>
+            <div class="field">
+              <label for="r-password">Contraseña</label>
+              <div class="input-wrap">
+                <input id="r-password" name="password" type="password" autocomplete="new-password">
+                <button type="button" class="toggle" data-ver="r-password" aria-label="Mostrar contraseña" aria-pressed="false"></button>
+              </div>
+              <div class="hint">Mínimo 8 caracteres.</div>
+            </div>
+            <div class="field">
+              <label for="r-repetir">Repetir contraseña</label>
+              <input id="r-repetir" name="repetir" type="password" autocomplete="new-password">
+            </div>
+            <button class="btn" type="submit" style="width:100%;margin-top:22px">Crear cuenta</button>
+          </form>
+          <div id="registro-msg"></div>
+          <p class="alt-accion">¿Ya tenés cuenta? <a class="link-btn" href="#">Iniciar sesión</a></p>
+        </div>
+
+        <!-- Registro enviado -->
+        <div id="view-registrado" class="hidden exito" data-vista>
+          <div class="ok-icon" data-icono="check"></div>
+          <h1>¡Cuenta creada!</h1>
+          <p id="registrado-texto"></p>
+          <a class="btn" href="#" style="width:100%;margin-top:18px">Volver a iniciar sesión</a>
+        </div>
+
+        <!-- Olvidé mi contraseña -->
+        <div id="view-recuperar" class="hidden" data-vista>
+          <h1>Recuperar contraseña</h1>
+          <p class="sub">Ingresá tu usuario o email y te enviamos un enlace para crear una nueva.</p>
+          <form id="form-recuperar" novalidate>
+            <div class="field">
+              <label for="rec-usuario">Usuario o email</label>
+              <input id="rec-usuario" name="usuario" autocomplete="username" autocapitalize="none" spellcheck="false">
+            </div>
+            <button class="btn" type="submit" style="width:100%;margin-top:22px">Enviar enlace</button>
+          </form>
+          <div id="recuperar-msg"></div>
+          <p class="alt-accion"><a class="link-btn" href="#">← Volver a iniciar sesión</a></p>
+        </div>
+
+        <!-- Enlace enviado -->
+        <div id="view-enviado" class="hidden exito" data-vista>
+          <div class="ok-icon" data-icono="mail"></div>
+          <h1>Revisá tu email</h1>
+          <p>Si los datos corresponden a una cuenta, te enviamos un enlace para crear una nueva contraseña. Vence en 1 hora.</p>
+          <p class="small">¿No te llegó? Revisá la carpeta de spam. Si tu cuenta no tiene email cargado, pedile a Genco que te restablezca la contraseña.</p>
+          <a class="btn" href="#" style="width:100%;margin-top:18px">Volver a iniciar sesión</a>
+        </div>
+
+        <!-- Nueva contraseña (desde el enlace del mail) -->
+        <div id="view-restablecer" class="hidden" data-vista>
+          <h1>Nueva contraseña</h1>
+          <p class="sub">Elegí una contraseña nueva para tu cuenta.</p>
+          <form id="form-restablecer" novalidate>
+            <div class="field">
+              <label for="n-password">Nueva contraseña</label>
+              <div class="input-wrap">
+                <input id="n-password" name="password" type="password" autocomplete="new-password">
+                <button type="button" class="toggle" data-ver="n-password" aria-label="Mostrar contraseña" aria-pressed="false"></button>
+              </div>
+              <div class="hint">Mínimo 8 caracteres.</div>
+            </div>
+            <div class="field">
+              <label for="n-repetir">Repetir contraseña</label>
+              <input id="n-repetir" name="repetir" type="password" autocomplete="new-password">
+            </div>
+            <button class="btn" type="submit" style="width:100%;margin-top:22px">Guardar contraseña</button>
+          </form>
+          <div id="restablecer-msg"></div>
+        </div>
+
+        <!-- Contraseña cambiada -->
+        <div id="view-restablecido" class="hidden exito" data-vista>
+          <div class="ok-icon" data-icono="check"></div>
+          <h1>¡Contraseña actualizada!</h1>
+          <p id="restablecido-texto">Ya podés ingresar con tu nueva contraseña.</p>
+          <a class="btn" href="#" style="width:100%;margin-top:18px">Iniciar sesión</a>
+        </div>
+      </section>
+      <div class="auth-foot">
+        <a href="/consulta">Consultar un pedido sin cuenta →</a>
+        <img src="/img/stellantis-blanco.png" alt="Stellantis">
+      </div>
+    </div>
+  </main>
+
+  <script src="/common.js"></script>
+  <script>
+    const $ = (s) => document.querySelector(s);
+    document.querySelectorAll('[data-icono]').forEach((el) => (el.innerHTML = icono(el.dataset.icono)));
+
+    // El token del enlace de recuperación llega después del "#".
+    let tokenRestablecer = null;
+    const mRestablecer = location.hash.match(/^#restablecer=([\w-]+)$/);
+    if (mRestablecer) {
+      tokenRestablecer = mRestablecer[1];
+      history.replaceState(null, '', location.pathname + '#restablecer');
+    } else {
+      // Si ya hay sesión, ir directo a la sección que corresponde.
+      sesionActual().then((u) => u && location.replace(u.destino));
+    }
+
+    // Mostrar / ocultar contraseña
+    document.querySelectorAll('[data-ver]').forEach((btn) => {
+      btn.innerHTML = icono('ojo');
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.ver);
+        const mostrar = input.type === 'password';
+        input.type = mostrar ? 'text' : 'password';
+        btn.setAttribute('aria-pressed', String(mostrar));
+        btn.setAttribute('aria-label', mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña');
+      });
+    });
+
+    function vista(nombre) {
+      document.querySelectorAll('[data-vista]').forEach((el) => el.classList.toggle('hidden', el.id !== `view-${nombre}`));
+      document.querySelectorAll('[id$="-msg"]').forEach((el) => alerta(el, '', ''));
+      scrollTo(0, 0);
+    }
+
+    function irAlLogin() {
+      history.replaceState(null, '', location.pathname);
+      route();
+    }
+
+    function route() {
+      const h = location.hash;
+      if (h === '#registro') {
+        vista('registro');
+        if (!$('#form-registro').rol.value) $('#rol-taller').focus();
+      } else if (h === '#recuperar') {
+        vista('recuperar');
+        $('#rec-usuario').value = $('#usuario').value;
+        $('#rec-usuario').focus();
+      } else if (h === '#restablecer' && tokenRestablecer) {
+        vista('restablecer');
+        $('#n-password').focus();
+      } else {
+        vista('login');
+        $('#usuario').focus();
+      }
+    }
+    window.addEventListener('hashchange', route);
+    route();
+
+    // Los enlaces "#" vuelven al ingreso
+    document.querySelectorAll('a[href="#"]').forEach((a) =>
+      a.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        irAlLogin();
+      }));
+
+    // Ayuda para enviar formularios: deshabilita el botón y muestra errores.
+    function alEnviar(form, msgSel, fn) {
+      form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const btn = form.querySelector('button[type=submit]');
+        const msg = $(msgSel);
+        alerta(msg, '', '');
+        const error = (texto, campo) => {
+          alerta(msg, 'error', texto);
+          campo?.focus();
+        };
+        btn.disabled = true;
+        try {
+          await fn(error);
+        } catch (err) {
+          error(err.message);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    }
+
+    // ---- Ingresar
+    alEnviar($('#form-login'), '#login-msg', async (error) => {
+      const f = $('#form-login');
+      if (!f.usuario.value.trim() || !f.password.value) return error('Ingresá tu usuario y contraseña.');
+      try {
+        const r = await api('/api/auth/login', { method: 'POST', body: { usuario: f.usuario.value, password: f.password.value } });
+        location.replace(r.destino);
+      } catch (err) {
+        f.password.select();
+        throw err;
+      }
+    });
+
+    // ---- Registrarse: el taller pone el nombre del taller. Al perito las compañías se las asigna Genco.
+    document.querySelectorAll('input[name=rol]').forEach((r) => r.addEventListener('change', () => {
+      $('#campo-empresa').classList.toggle('hidden', r.value !== 'taller');
+      $('#r-empresa').value = '';
+    }));
+
+    alEnviar($('#form-registro'), '#registro-msg', async (error) => {
+      const f = $('#form-registro');
+      if (!f.rol.value) return error('Elegí si sos taller o perito.', $('#rol-taller'));
+      if (f.rol.value === 'taller' && !f.empresa.value.trim()) return error('Ingresá el nombre del taller.', f.empresa);
+      if (!f.nombre.value.trim()) return error('Ingresá tu nombre y apellido.', f.nombre);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.value.trim())) return error('Ingresá un email válido.', f.email);
+      if (!f.usuario.value.trim()) return error('Elegí un nombre de usuario.', f.usuario);
+      if (/\s/.test(f.usuario.value.trim())) return error('El nombre de usuario no puede tener espacios.', f.usuario);
+      if (f.password.value.length < 8) return error('La contraseña debe tener al menos 8 caracteres.', f.password);
+      if (f.password.value !== f.repetir.value) return error('Las contraseñas no coinciden.', f.repetir);
+      try {
+        const r = await api('/api/auth/registro', {
+          method: 'POST',
+          body: {
+            rol: f.rol.value, empresa: f.empresa.value, nombre: f.nombre.value,
+            email: f.email.value, usuario: f.usuario.value, password: f.password.value,
+          },
+        });
+        f.reset();
+        $('#campo-empresa').classList.add('hidden');
+        $('#registrado-texto').textContent =
+          `Gracias, ${r.nombre}. Tu cuenta de ${r.rol_nombre.toLowerCase()} quedó pendiente de aprobación. ` +
+          `Cuando Genco la habilite vas a poder ingresar con el usuario "${r.usuario}".`;
+        history.replaceState(null, '', location.pathname);
+        vista('registrado');
+      } catch (err) {
+        if (err.status === 409) return error(err.message, /email/i.test(err.message) ? f.email : f.usuario);
+        throw err;
+      }
+    });
+
+    // ---- Olvidé mi contraseña
+    alEnviar($('#form-recuperar'), '#recuperar-msg', async (error) => {
+      const f = $('#form-recuperar');
+      if (!f.usuario.value.trim()) return error('Ingresá tu usuario o email.', f.usuario);
+      await api('/api/auth/recuperar', { method: 'POST', body: { usuario: f.usuario.value } });
+      f.reset();
+      history.replaceState(null, '', location.pathname);
+      vista('enviado');
+    });
+
+    // ---- Nueva contraseña
+    alEnviar($('#form-restablecer'), '#restablecer-msg', async (error) => {
+      const f = $('#form-restablecer');
+      if (f.password.value.length < 8) return error('La contraseña debe tener al menos 8 caracteres.', f.password);
+      if (f.password.value !== f.repetir.value) return error('Las contraseñas no coinciden.', f.repetir);
+      const r = await api('/api/auth/restablecer', { method: 'POST', body: { token: tokenRestablecer, password: f.password.value } });
+      tokenRestablecer = null;
+      f.reset();
+      history.replaceState(null, '', location.pathname);
+      $('#usuario').value = r.usuario;
+      $('#restablecido-texto').textContent = `Ya podés ingresar con el usuario "${r.usuario}" y tu nueva contraseña.`;
+      vista('restablecido');
+    });
+  </script>
+</body>
+</html>
