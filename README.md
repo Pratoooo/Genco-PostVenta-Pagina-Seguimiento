@@ -5,7 +5,7 @@ Página de seguimiento de pedidos de repuestos por siniestro de Grupo Genco.
 - **Iniciar sesión** (`/`, `/login`): es lo primero que se ve. Se ingresa con **email y contraseña** y la página lleva a cada uno a su sección:
   - **Talleres** y **peritos** → `/mis-pedidos`: ven solo los pedidos que tienen asignados.
   - **Administradores** → `/admin`: cargan y actualizan pedidos, y gestionan las cuentas.
-- **Registrarse**: talleres y peritos crean su cuenta con nombre y apellido, email y contraseña (los talleres, además, el nombre del taller). La cuenta queda **pendiente** hasta que un admin la aprueba. A los peritos el admin les carga sus compañías de seguro.
+- **Registrarse**: talleres y peritos crean su cuenta con nombre y apellido, email y contraseña (los talleres, además, el nombre del taller). La cuenta queda **pendiente** hasta que un admin la aprueba.
 - **¿Olvidaste tu contraseña?**: llega un mail con un enlace (vence en 1 hora y sirve una sola vez) para crear una nueva.
 - **Consulta sin cuenta** (`/consulta`): el estado de un pedido con el número de siniestro y la patente.
 
@@ -70,8 +70,10 @@ data/                 Base de datos (no se sube a git)
 ## Estados del pedido
 
 1. **Pedido a fábrica / Stock disponible**
-2. **Despacho** parcial o total, con N° de remito
-3. **Expreso** (Angeleri, Andreani o Sendbox) con N° de guía y estado del viaje
-4. **En camino / Recibido**
+2. **Despacho**: parcial (falta enviar una parte) o completo
+3. **Envíos**: cada uno con su N° de remito, expreso (Angeleri, Andreani o Sendbox), N° de guía, estado del viaje y entrega
+4. **En camino / Recibido en parte / Recibido**
 
-Cada cambio de estado que guarda el admin queda en el historial que ven el cliente, el taller y el perito.
+**Despacho parcial:** cuando hay solo una parte de las piezas, se manda esa parte (Envío 1, con su remito y su guía). Cuando llega lo que falta, en la ficha del pedido se agrega otro envío con su propio remito y número de guía ("+ Agregar envío con lo que falta") y el despacho pasa a *Completo*. El pedido figura como *Recibido* recién cuando llegaron todos los envíos.
+
+Cada cambio que guarda el admin queda en el historial que ven el cliente, el taller y el perito (por ejemplo "Envío 2 · Remito 0001-00020045").

@@ -98,6 +98,44 @@ const MIGRACIONES = [
         'Cambialos por los reales en Administración → Usuarios.';
     }
   },
+
+  // 3 · Los peritos ya no tienen compañías de seguro: solo los talleres usan "empresa" (nombre del taller).
+  (db) => {
+    db.exec("UPDATE usuarios SET empresa = '' WHERE rol <> 'taller'");
+  },
+
+  // 4 · Un pedido puede salir en varios envíos (despacho parcial: se manda una parte y lo que falta
+  //     va después con otro remito y otro número de guía). El remito, expreso, guía, estado del viaje
+  //     y entrega pasan del pedido a cada envío; lo que ya había se convierte en el envío 1.
+  (db) => {
+    db.exec(`
+      CREATE TABLE envios (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        pedido_id    INTEGER NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+        remito       TEXT NOT NULL DEFAULT '',
+        -- '' | angeleri | andreani | sendbox
+        transporte   TEXT NOT NULL DEFAULT '',
+        guia         TEXT NOT NULL DEFAULT '',
+        estado_viaje TEXT NOT NULL DEFAULT '',
+        -- '' | en_camino | recibido
+        entrega      TEXT NOT NULL DEFAULT '',
+        created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX idx_envios_pedido ON envios(pedido_id);
+
+      INSERT INTO envios (pedido_id, remito, transporte, guia, estado_viaje, entrega)
+        SELECT id, remito, transporte, guia, estado_viaje, entrega FROM pedidos
+        WHERE remito <> '' OR transporte <> '' OR guia <> '' OR estado_viaje <> '' OR entrega <> '';
+      -- Pedidos que ya tenían envío pero no decían el tipo de despacho: se toman como completos.
+      UPDATE pedidos SET despacho = 'total' WHERE despacho = '' AND id IN (SELECT pedido_id FROM envios);
+
+      ALTER TABLE pedidos DROP COLUMN remito;
+      ALTER TABLE pedidos DROP COLUMN transporte;
+      ALTER TABLE pedidos DROP COLUMN guia;
+      ALTER TABLE pedidos DROP COLUMN estado_viaje;
+      ALTER TABLE pedidos DROP COLUMN entrega;
+    `);
+  },
 ];
 
 export function migrar(db) {

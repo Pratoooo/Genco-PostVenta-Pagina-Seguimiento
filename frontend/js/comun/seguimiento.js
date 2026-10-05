@@ -4,6 +4,23 @@ import { esc, fecha, icono, pillEstado } from './ui.js';
 
 const ICONO_ETAPA = ['origen', 'despacho', 'expreso', 'entrega'];
 
+// Cada envío con su remito, expreso, guía y estado. Con despacho parcial, aviso de que falta una parte.
+function renderEnvios(s) {
+  if (!s.envios.length) return '';
+  const numerar = s.envios.length > 1 || s.despacho_parcial;
+  const filas = s.envios.map((e, i) => `<li class="envio">
+      <div class="envio-ico">${icono('expreso')}</div>
+      <div class="envio-txt">
+        <strong>${numerar ? `Envío ${i + 1}` : 'Envío'}</strong>
+        <span>${esc([e.remito && `Remito ${e.remito}`, e.transporte, e.guia && `Guía ${e.guia}`].filter(Boolean).join(' · '))}</span>
+        ${e.estado_viaje && !e.recibido ? `<span class="envio-viaje">Estado del viaje: ${esc(e.estado_viaje)}</span>` : ''}
+      </div>
+      ${pillEstado(e, true)}
+    </li>`).join('');
+  return `<ul class="envios" aria-label="Envíos">${filas}</ul>
+    ${s.despacho_parcial ? '<p class="aviso-parcial">Se envió una parte del pedido. Lo que falta sale en otro envío, con su propio remito y número de guía.</p>' : ''}`;
+}
+
 export function renderSeguimiento(s) {
   const etapas = s.etapas
     .map((e, i) => {
@@ -29,7 +46,7 @@ export function renderSeguimiento(s) {
         ${dato('Perito', p.perito)}${dato('Compañía', p.compania)}${dato('Piezas', p.cantidad_piezas)}
       </dl>
       <ol class="stepper" aria-label="Estado del pedido">${etapas}</ol>
-      ${s.estado_viaje && !s.recibido ? `<div class="viaje">${icono('expreso')}<span><strong>Estado del viaje:</strong> ${esc(s.estado_viaje)}</span></div>` : ''}
+      ${renderEnvios(s)}
       <p class="updated">Última actualización: ${fecha(s.actualizado)}</p>
     </article>
     <article class="card">

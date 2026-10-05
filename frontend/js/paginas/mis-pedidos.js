@@ -62,7 +62,7 @@ usuario = await exigirSesion(['perito', 'taller']);
 if (usuario) {
   $('#subtitulo').textContent = usuario.rol === 'taller'
     ? `Pedidos asignados a ${usuario.empresa || usuario.nombre}`
-    : `Pedidos asignados a ${usuario.nombre}${usuario.empresa ? ` · ${usuario.empresa}` : ''}`;
+    : `Pedidos asignados a ${usuario.nombre}`;
   $('#th-otro').textContent = usuario.rol === 'perito' ? 'Taller' : 'Perito';
   await route();
   // Novedades que carga Genco mientras la página está abierta (solo la lista, el detalle no se toca).

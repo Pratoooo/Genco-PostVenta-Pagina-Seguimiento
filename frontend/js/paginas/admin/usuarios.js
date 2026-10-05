@@ -2,17 +2,8 @@
 import { apiPrivada } from '../../comun/api.js';
 import { $, esc, fecha, alerta, celda } from '../../comun/ui.js';
 import { estado, alCargarOpciones, cargarOpciones, llenarSelect, avisoDeError } from './estado.js';
-import { crearEtiquetas } from './componentes.js';
-
-// Sugerencias para las compañías de un perito (se puede escribir cualquier otra).
-const COMPANIAS = [
-  'Allianz', 'Federación Patronal', 'La Caja', 'La Segunda', 'Mapfre', 'Mercantil Andina', 'Provincia Seguros',
-  'Rivadavia Seguros', 'Rio Uruguay Seguros', 'San Cristóbal', 'Sancor Seguros', 'Sura', 'Zurich',
-];
 
 const form = $('#form-usuario');
-const companias = crearEtiquetas($('#u-chips'), COMPANIAS);
-$('#u-companias').innerHTML = COMPANIAS.map((c) => `<option>${esc(c)}</option>`).join('');
 let avisoPendiente = null;
 
 alCargarOpciones((op) => llenarSelect(form.elements.rol, op.roles));
@@ -35,9 +26,7 @@ export async function cargarUsuarios() {
         <div class="small muted">${esc(u.email)} · se registró el ${fecha(u.created_at)}</div></div>
       <div class="acciones">
         <button class="btn danger" type="button" data-rechazar="${u.id}">Rechazar</button>
-        ${u.rol === 'perito'
-          ? `<a class="btn sm" href="#/usuarios/${u.id}">Cargar compañías y aprobar</a>`
-          : `<button class="btn sm" type="button" data-aprobar="${u.id}">Aprobar</button>`}
+        <button class="btn sm" type="button" data-aprobar="${u.id}">Aprobar</button>
       </div>
     </div>`)
     .join('');
@@ -46,7 +35,7 @@ export async function cargarUsuarios() {
     .filter((u) => u.aprobado)
     .map((u) => `<tr class="clickable" data-href="#/usuarios/${u.id}">
       ${celda('Nombre', `<strong>${esc(u.nombre)}</strong>${u.id === estado.yo.id ? ' <span class="small muted">(esta cuenta)</span>' : ''}`)}
-      ${celda('Taller / Compañías', esc(u.empresa))}
+      ${celda('Taller', u.rol === 'taller' ? esc(u.empresa) : '')}
       ${celda('Email', esc(u.email))}
       ${celda('Rol', `<span class="badge ${u.rol === 'admin' ? 'admin' : ''}">${esc(roles[u.rol])}</span>`)}
       ${celda('Pedidos', u.rol === 'admin' ? '—' : u.pedidos)}
@@ -80,11 +69,9 @@ $('#lista-pendientes').addEventListener('click', async (ev) => {
 
 // ---------------------------------------------------------------- Formulario
 
-// Taller: nombre del taller. Perito: sus compañías. Administrador: nada.
+// Solo los talleres llevan un dato extra: el nombre del taller.
 function mostrarCamposDelRol() {
-  const rol = form.elements.rol.value;
-  $('#u-taller-campo').classList.toggle('hidden', rol !== 'taller');
-  $('#u-companias-campo').classList.toggle('hidden', rol !== 'perito');
+  $('#u-taller-campo').classList.toggle('hidden', form.elements.rol.value !== 'taller');
 }
 form.elements.rol.addEventListener('change', mostrarCamposDelRol);
 
@@ -95,7 +82,7 @@ function datosDelFormulario() {
     nombre: f.nombre.value,
     email: f.email.value,
     rol,
-    empresa: rol === 'taller' ? $('#u-empresa').value : rol === 'perito' ? companias.valor() : '',
+    empresa: rol === 'taller' ? $('#u-empresa').value : '',
     activo: f.activo.checked,
     password: f.password.value,
     version: form.dataset.version,
@@ -125,7 +112,6 @@ export async function abrirUsuario(id) {
     ? 'Dejala vacía para no cambiarla. Si la cambiás, se cierran todas sus sesiones abiertas.'
     : 'Mínimo 8 caracteres. Compartila con la persona para que ingrese.';
   form.elements.password.required = !id;
-  companias.set('');
   if (!id) {
     form.elements.rol.value = 'taller';
     mostrarCamposDelRol();
@@ -141,7 +127,6 @@ export async function abrirUsuario(id) {
   form.elements.activo.checked = Boolean(u.activo);
   form.dataset.version = u.version;
   $('#u-empresa').value = u.rol === 'taller' ? u.empresa : '';
-  companias.set(u.rol === 'perito' ? u.empresa : '');
   mostrarCamposDelRol();
   $('#aviso-pendiente').classList.toggle('hidden', Boolean(u.aprobado));
   if (avisoPendiente) alerta($('#usuario-msg'), 'ok', avisoPendiente);

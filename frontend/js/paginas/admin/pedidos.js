@@ -1,17 +1,16 @@
-// Panel admin · Pedidos: lista, alta y edición (con el estado de cada etapa).
+// Panel admin · Pedidos: lista, alta y edición (con el estado de cada etapa y sus envíos).
 import { apiPrivada } from '../../comun/api.js';
 import { $, esc, fecha, alerta, celda, pillEstado } from '../../comun/ui.js';
 import { renderSeguimiento } from '../../comun/seguimiento.js';
 import { estado, alCargarOpciones, llenarSelect, avisoDeError } from './estado.js';
 import { crearCombo } from './componentes.js';
+import { pintarEnvios, leerEnvios } from './envios.js';
 
 const form = $('#form-pedido');
 
 alCargarOpciones((op) => {
   llenarSelect(form.elements.origen, op.origenes, 'En revisión');
   llenarSelect(form.elements.despacho, op.despachos, 'Sin despachar');
-  llenarSelect(form.elements.transporte, op.transportes, 'Sin asignar');
-  llenarSelect(form.elements.entrega, op.entregas, '—');
 });
 
 const inactivo = (u) => (u.activo ? '' : 'inactivo');
@@ -28,7 +27,7 @@ const comboTaller = crearCombo($('#combo-taller'), {
 const comboPerito = crearCombo($('#combo-perito'), {
   lista: () => estado.opciones?.peritos ?? [],
   titulo: (u) => u.nombre,
-  detalle: (u) => [u.email, u.empresa, inactivo(u)].filter(Boolean).join(' · '),
+  detalle: (u) => [u.email, inactivo(u)].filter(Boolean).join(' · '),
   buscarEn: (u) => [u.nombre, u.email],
 });
 
@@ -63,6 +62,7 @@ export async function abrirPedido(id) {
   form.dataset.version = '';
   comboTaller.set(null);
   comboPerito.set(null);
+  pintarEnvios([]);
   if (!id) return form.elements.siniestro.focus();
 
   const p = await apiPrivada(`/api/admin/pedidos/${id}`);
@@ -71,6 +71,7 @@ export async function abrirPedido(id) {
   form.dataset.version = p.version;
   comboTaller.set(p.taller_id);
   comboPerito.set(p.perito_id);
+  pintarEnvios(p.envios);
   $('#preview').innerHTML = renderSeguimiento(p.seguimiento);
 }
 
@@ -80,7 +81,7 @@ form.addEventListener('submit', async (ev) => {
   const btn = $('button[type=submit]', form);
   btn.disabled = true;
   try {
-    const body = { ...Object.fromEntries(new FormData(form)), version: form.dataset.version };
+    const body = { ...Object.fromEntries(new FormData(form)), envios: leerEnvios(), version: form.dataset.version };
     const p = await apiPrivada(id ? `/api/admin/pedidos/${id}` : '/api/admin/pedidos', { method: id ? 'PUT' : 'POST', body });
     if (!id) return (location.hash = `#/pedidos/${p.id}`);
     await abrirPedido(id);

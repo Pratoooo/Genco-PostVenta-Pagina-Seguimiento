@@ -128,8 +128,22 @@ input:focus, select:focus { outline: none; background: #fff; border-color: var(-
 .step:not(.done):not(.current) .t { color: var(--muted); font-weight: 600; }
 .step .d { font-size: .82rem; color: var(--muted); margin-top: 2px; }
 
-.viaje { display: flex; align-items: center; gap: 12px; margin: 26px 0 0; padding: 14px 18px; border-radius: 14px; background: linear-gradient(135deg, var(--brand-soft), #f4f7ff); color: var(--brand); }
-.viaje strong { font-weight: 700; }
+/* Envíos de un pedido (uno, o varios si el despacho es parcial) */
+.envios { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 10px; }
+.envio { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; background: var(--field); }
+.envio-ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); flex: none; }
+.envio-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.envio-txt strong { font-family: var(--font-display); }
+.envio-txt span { font-size: .88rem; color: var(--muted); overflow-wrap: anywhere; }
+.envio-txt .envio-viaje { color: var(--brand); font-weight: 600; }
+.aviso-parcial { margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; background: #fff4e0; color: #8a4b00; font-size: .9rem; }
+
+/* Panel admin: carga de envíos */
+.subtitulo { font-family: var(--font-display); font-size: 1rem; margin: 26px 0 4px; }
+.subtitulo span { display: block; font-family: var(--font); font-weight: 400; font-size: .85rem; color: var(--muted); margin-top: 2px; }
+.envio-form { margin-top: 12px; padding: 16px 18px; border: 1px solid var(--border); border-left: 4px solid var(--brand-2); border-radius: 14px; }
+.envio-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.envio-head strong { font-family: var(--font-display); }
 .updated { margin: 18px 0 0; font-size: .82rem; color: var(--muted); text-align: right; }
 
 .timeline { list-style: none; padding: 0; margin: 14px 0 0; }
@@ -216,7 +230,7 @@ body.cargando main { visibility: hidden; }
 .check input { width: 20px; height: 20px; accent-color: var(--brand-2); }
 .hint { font-size: .8rem; color: var(--muted); margin-top: 6px; }
 
-/* ------------------------------------------------ Buscador (combo) y compañías (chips) */
+/* ------------------------------------------------ Buscador (combo) */
 .combo { position: relative; }
 .combo input[type=text] { padding-right: 44px; }
 .combo-quitar { position: absolute; right: 8px; top: 8px; width: 36px; height: 36px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font-size: 1.3rem; line-height: 1; cursor: pointer; }
@@ -227,13 +241,6 @@ body.cargando main { visibility: hidden; }
 .combo-lista li[aria-selected="true"], .combo-lista li:hover { background: var(--brand-soft); }
 .combo-lista li.vacio { cursor: default; color: var(--muted); background: none; }
 .combo-lista mark { background: none; color: var(--brand-2); font-weight: 700; }
-.chips-input { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 52px; padding: 7px 8px; border-radius: 12px; background: var(--field); border: 1.5px solid transparent; cursor: text; transition: border-color .15s, background .15s, box-shadow .15s; }
-.chips-input:hover { border-color: var(--border); }
-.chips-input:focus-within { background: #fff; border-color: var(--brand-2); box-shadow: 0 0 0 4px rgba(47, 79, 180, .14); }
-.chips-input input, .chips-input input:hover, .chips-input input:focus { flex: 1; min-width: 150px; height: 36px; padding: 0 6px; border: 0; background: transparent; box-shadow: none; outline: none; }
-.chip { display: inline-flex; align-items: center; gap: 2px; padding: 4px 4px 4px 12px; border-radius: 99px; background: var(--brand-soft); color: var(--brand); font-weight: 600; font-size: .88rem; }
-.chip button { all: unset; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; cursor: pointer; font-size: 1rem; line-height: 1; }
-.chip button:hover { background: rgba(37, 56, 131, .15); }
 
 /* ------------------------------------------------ Diálogo */
 .dialog { border: 0; padding: 0; border-radius: 20px; box-shadow: var(--shadow-lg); width: min(420px, calc(100% - 32px)); }
@@ -301,6 +308,9 @@ body.cargando main { visibility: hidden; }
   .step::before { left: 27px; right: auto; top: -22px; width: 4px; height: 22px; }
   .step .dot { margin: 0; }
   .updated { text-align: left; }
+  .envio { flex-wrap: wrap; }
+  .envio .pill { margin-left: 56px; }
+  .envio-form { padding: 14px; }
   .header-tag { display: none; }
   .user-txt, .header-right .divider, .ocultar-movil { display: none; }
   .header-right { gap: 10px; }

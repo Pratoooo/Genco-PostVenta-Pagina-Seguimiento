@@ -1,4 +1,4 @@
-// Componentes de formulario del panel: buscador (para elegir taller o perito) y etiquetas (compañías).
+// Componentes de formulario del panel: buscador para elegir taller o perito.
 import { esc, sinAcentos } from '../../comun/ui.js';
 
 // Resalta la parte que coincide con lo buscado (sin importar acentos ni mayúsculas).
@@ -81,56 +81,4 @@ export function crearCombo(raiz, { lista, titulo, detalle, buscarEn }) {
   });
 
   return { set: (id) => elegir(lista().find((u) => String(u.id) === String(id)) ?? null) };
-}
-
-// Etiquetas: se escribe un valor y Enter (o se elige de las sugerencias) y queda como etiqueta con ×.
-export function crearEtiquetas(raiz, sugerencias = []) {
-  const input = raiz.querySelector('input');
-  let valores = [];
-
-  function pintar() {
-    raiz.querySelectorAll('.chip').forEach((c) => c.remove());
-    valores.forEach((v, i) => input.insertAdjacentHTML('beforebegin',
-      `<span class="chip">${esc(v)}<button type="button" data-i="${i}" aria-label="Quitar ${esc(v)}">×</button></span>`));
-  }
-  function agregar(texto) {
-    for (const v of texto.split(',').map((s) => s.trim().replace(/\s+/g, ' ')).filter(Boolean)) {
-      if (!valores.some((x) => sinAcentos(x) === sinAcentos(v))) valores.push(v);
-    }
-    input.value = '';
-    pintar();
-  }
-
-  input.addEventListener('keydown', (ev) => {
-    if ((ev.key === 'Enter' || ev.key === ',') && input.value.trim()) {
-      ev.preventDefault();
-      agregar(input.value);
-    } else if (ev.key === 'Backspace' && !input.value && valores.length) {
-      valores.pop();
-      pintar();
-    }
-  });
-  // Elegir una sugerencia de la lista la agrega directo.
-  input.addEventListener('input', (ev) => {
-    if (ev.inputType === 'insertReplacementText' || (ev.inputType === undefined && sugerencias.includes(input.value))) {
-      agregar(input.value);
-    }
-  });
-  input.addEventListener('blur', () => input.value.trim() && agregar(input.value));
-  raiz.addEventListener('click', (ev) => {
-    const btn = ev.target.closest('button[data-i]');
-    if (btn) {
-      valores.splice(Number(btn.dataset.i), 1);
-      pintar();
-    }
-    input.focus();
-  });
-
-  return {
-    valor: () => valores.join(', '),
-    set(texto) {
-      valores = [];
-      agregar(texto || '');
-    },
-  };
 }

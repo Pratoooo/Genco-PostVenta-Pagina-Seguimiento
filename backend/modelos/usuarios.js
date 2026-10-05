@@ -39,10 +39,9 @@ export const publico = (u) => ({
   id: u.id, email: u.email, nombre: u.nombre, empresa: u.empresa, rol: u.rol, rol_nombre: ROLES[u.rol], destino: DESTINOS[u.rol],
 });
 
-// Valida los datos de un formulario de usuario.
+// Valida los datos de un formulario de usuario. Solo los talleres llevan "empresa" (el nombre del taller).
 //   nuevo: la contraseña es obligatoria.
-//   registro: se registra desde la página (el taller pone el nombre del taller; al perito las
-//   compañías se las carga un admin).
+//   registro: se registra desde la página (el nombre del taller es obligatorio).
 export function leer(b = {}, { nuevo = false, registro = false } = {}) {
   const d = {
     email: norm.email(b.email),
@@ -52,8 +51,7 @@ export function leer(b = {}, { nuevo = false, registro = false } = {}) {
     activo: b.activo === undefined ? 1 : b.activo ? 1 : 0,
   };
   if (!ROLES[d.rol]) throw new HttpError(400, 'Rol inválido');
-  if (d.rol === 'admin' || (registro && d.rol === 'perito')) d.empresa = '';
-  if (d.rol === 'perito') d.empresa = norm.companias(d.empresa);
+  if (d.rol !== 'taller') d.empresa = '';
   if (!d.nombre) throw new HttpError(400, 'Ingresá el nombre y apellido.');
   if (registro && d.rol === 'taller' && !d.empresa) throw new HttpError(400, 'Ingresá el nombre del taller.');
   if (!d.email) throw new HttpError(400, 'Ingresá el email.');

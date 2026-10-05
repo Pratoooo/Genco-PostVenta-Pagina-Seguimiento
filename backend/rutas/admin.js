@@ -32,7 +32,7 @@ router.get('/pedidos', (req, res) => {
 
 router.get('/pedidos/:id', (req, res) => {
   const p = pedidos.obtener(req.params.id);
-  res.json({ ...p, seguimiento: pedidos.seguimiento(p) });
+  res.json({ ...p, envios: pedidos.listarEnvios(p.id), seguimiento: pedidos.seguimiento(p) });
 });
 
 router.post('/pedidos', (req, res) => {

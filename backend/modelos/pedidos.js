@@ -1,13 +1,18 @@
-// Pedidos de repuestos por siniestro: datos, etapas de seguimiento e historial.
+// Pedidos de repuestos por siniestro: datos, envíos, etapas de seguimiento e historial.
+//
+// Un pedido puede salir en varios envíos: con despacho parcial se manda la parte que hay y lo que
+// falta va después en otro envío, con su propio remito y número de guía.
 import { db, transaction } from '../db/conexion.js';
 import { HttpError, conflicto } from '../lib/errores.js';
 import * as norm from '../lib/normalizar.js';
 import { ROLES } from './usuarios.js';
 
 export const ORIGENES = { stock: 'Stock disponible', fabrica: 'Pedido a fábrica' };
-export const DESPACHOS = { parcial: 'Despacho parcial', total: 'Despacho total' };
+export const DESPACHOS = { parcial: 'Parcial (falta enviar una parte)', total: 'Completo (se envió todo)' };
 export const TRANSPORTES = { angeleri: 'Angeleri', andreani: 'Andreani', sendbox: 'Sendbox' };
 export const ENTREGAS = { en_camino: 'En camino', recibido: 'Recibido' };
+
+const MAX_ENVIOS = 10;
 
 // Pedido con los nombres del taller y del perito asignados.
 const SELECT = `
@@ -23,17 +28,22 @@ export function obtener(id) {
   return p;
 }
 
+const consultaEnvios = db.prepare('SELECT * FROM envios WHERE pedido_id = ? ORDER BY id');
+export const listarEnvios = (pedidoId) => consultaEnvios.all(pedidoId);
+
 export const buscarPorSiniestroYPatente = (siniestro, patente) =>
   db.prepare(`${SELECT} WHERE p.siniestro = ? AND p.patente = ?`).get(siniestro, patente);
 
+// Búsqueda del panel: siniestro, patente, compañía, taller, perito, remito o número de guía.
 export function listar(q = '') {
   const like = `%${q}%`;
   return db
     .prepare(`${SELECT}
       WHERE ? = '' OR p.siniestro LIKE ? OR p.patente LIKE ? OR p.compania LIKE ? OR p.taller LIKE ?
          OR t.nombre LIKE ? OR t.empresa LIKE ? OR pe.nombre LIKE ?
+         OR EXISTS (SELECT 1 FROM envios e WHERE e.pedido_id = p.id AND (e.remito LIKE ? OR e.guia LIKE ?))
       ORDER BY p.updated_at DESC LIMIT 300`)
-    .all(q, like, `%${norm.patente(q)}%`, like, like, like, like, like);
+    .all(q, like, `%${norm.patente(q)}%`, like, like, like, like, like, like, like);
 }
 
 // Pedidos asignados a un taller o a un perito.
@@ -46,9 +56,18 @@ export const estaAsignado = (pedido, usuario) => pedido[columnaAsignacion(usuari
 
 // ---------------------------------------------------------------- Seguimiento
 
-// Las 4 etapas: Origen -> Despacho (remito) -> Expreso (guía) -> En camino / Recibido
-function etapas(p) {
-  const recibido = p.entrega === 'recibido';
+// Con más de un envío (o si el despacho es parcial) cada uno se nombra "Envío 1", "Envío 2"...
+const variosEnvios = (p, envios) => envios.length > 1 || p.despacho === 'parcial';
+
+// Las 4 etapas: Origen -> Despacho (remitos) -> Expreso (guías) -> En camino / Recibido
+function etapas(p, envios) {
+  const recibidos = envios.filter((e) => e.entrega === 'recibido').length;
+  const completo = p.despacho === 'total';
+  const recibido = completo && envios.length > 0 && recibidos === envios.length;
+  const despachados = envios.filter((e) => e.transporte || e.guia);
+  const remitos = envios.map((e) => e.remito).filter(Boolean);
+  const falta = p.despacho === 'parcial' ? 'falta enviar una parte' : '';
+
   const lista = [
     {
       titulo: ORIGENES[p.origen] || 'Pedido a fábrica / Stock',
@@ -56,19 +75,21 @@ function etapas(p) {
       detalle: p.origen ? '' : 'Estamos verificando la disponibilidad de las piezas.',
     },
     {
-      titulo: DESPACHOS[p.despacho] || 'Despacho',
-      alcanzada: Boolean(p.despacho || p.remito),
-      detalle: p.remito ? `Remito ${p.remito}` : '',
+      titulo: p.despacho === 'parcial' ? 'Despacho parcial' : completo ? (envios.length > 1 ? 'Despacho completo' : 'Despacho total') : 'Despacho',
+      alcanzada: Boolean(p.despacho || envios.length),
+      detalle: [remitos.length && `${remitos.length > 1 ? 'Remitos' : 'Remito'} ${remitos.join(', ')}`, falta].filter(Boolean).join(' · '),
     },
     {
       titulo: 'Expreso',
-      alcanzada: Boolean(p.transporte || p.guia),
-      detalle: [TRANSPORTES[p.transporte], p.guia && `Guía ${p.guia}`].filter(Boolean).join(' · '),
+      alcanzada: despachados.length > 0,
+      detalle: variosEnvios(p, envios)
+        ? (despachados.length ? `${despachados.length} ${despachados.length > 1 ? 'envíos despachados' : 'envío despachado'}` : '')
+        : despachados.map((e) => [TRANSPORTES[e.transporte], e.guia && `Guía ${e.guia}`].filter(Boolean).join(' · ')).join(''),
     },
     {
-      titulo: recibido ? 'Recibido' : 'En camino',
-      alcanzada: Boolean(p.entrega),
-      detalle: '',
+      titulo: recibido ? 'Recibido' : recibidos ? 'Recibido en parte' : 'En camino',
+      alcanzada: envios.some((e) => e.entrega),
+      detalle: recibidos && !recibido ? [`${recibidos} de ${envios.length} ${envios.length > 1 ? 'envíos recibidos' : 'envío recibido'}`, falta].filter(Boolean).join(' · ') : '',
     },
   ];
   const actual = recibido ? lista.length : Math.max(0, lista.findLastIndex((e) => e.alcanzada));
@@ -87,18 +108,32 @@ const datos = (p) => ({
   cantidad_piezas: p.cantidad_piezas,
 });
 
-// Todo lo que muestra la pantalla de seguimiento.
-export const seguimiento = (p) => ({
-  pedido: datos(p),
-  ...etapas(p),
-  estado_viaje: p.estado_viaje,
-  actualizado: p.updated_at,
-  eventos: db.prepare('SELECT descripcion, fecha FROM eventos WHERE pedido_id = ? ORDER BY id DESC').all(p.id),
+// Lo que se muestra de cada envío.
+const envioPublico = (e) => ({
+  remito: e.remito,
+  transporte: TRANSPORTES[e.transporte] || '',
+  guia: e.guia,
+  estado_viaje: e.estado_viaje,
+  recibido: e.entrega === 'recibido',
+  estado: e.entrega ? ENTREGAS[e.entrega] : e.transporte || e.guia ? 'Despachado' : 'Preparando envío',
 });
+
+// Todo lo que muestra la pantalla de seguimiento.
+export function seguimiento(p) {
+  const envios = listarEnvios(p.id);
+  return {
+    pedido: datos(p),
+    ...etapas(p, envios),
+    despacho_parcial: p.despacho === 'parcial',
+    envios: envios.map(envioPublico),
+    actualizado: p.updated_at,
+    eventos: db.prepare('SELECT descripcion, fecha FROM eventos WHERE pedido_id = ? ORDER BY id DESC').all(p.id),
+  };
+}
 
 // Fila de los listados.
 export function resumen(p) {
-  const { etapa_actual, recibido, estado } = etapas(p);
+  const { etapa_actual, recibido, estado } = etapas(p, listarEnvios(p.id));
   return { ...datos(p), etapa_actual, recibido, estado, updated_at: p.updated_at };
 }
 
@@ -117,10 +152,26 @@ function idUsuario(valor, rol) {
   return u.id;
 }
 
-const CAMPOS = ['siniestro', 'patente', 'taller_id', 'perito_id', 'compania', 'vehiculo', 'cantidad_piezas',
-  'origen', 'remito', 'despacho', 'transporte', 'guia', 'estado_viaje', 'entrega'];
+function leerEnvios(lista) {
+  if (lista == null) return [];
+  if (!Array.isArray(lista) || lista.length > MAX_ENVIOS) throw new HttpError(400, 'Envíos inválidos');
+  return lista.map((e, i) => {
+    const envio = {
+      id: e?.id ? Number(e.id) : null,
+      remito: norm.texto(e?.remito),
+      transporte: opcion(e?.transporte, TRANSPORTES, 'Expreso'),
+      guia: norm.texto(e?.guia),
+      estado_viaje: norm.texto(e?.estado_viaje),
+      entrega: opcion(e?.entrega, ENTREGAS, 'Entrega'),
+    };
+    if (!envio.remito) throw new HttpError(400, `Falta el N° de remito del envío ${i + 1}.`);
+    return envio;
+  });
+}
 
-// Valida los datos del formulario de pedido.
+const CAMPOS = ['siniestro', 'patente', 'taller_id', 'perito_id', 'compania', 'vehiculo', 'cantidad_piezas', 'origen', 'despacho'];
+
+// Valida los datos del formulario de pedido (incluidos sus envíos).
 export function leer(b = {}) {
   const d = {
     siniestro: norm.texto(b.siniestro),
@@ -131,16 +182,13 @@ export function leer(b = {}) {
     vehiculo: norm.texto(b.vehiculo),
     cantidad_piezas: b.cantidad_piezas === '' || b.cantidad_piezas == null ? null : Number.parseInt(b.cantidad_piezas, 10),
     origen: opcion(b.origen, ORIGENES, 'Origen'),
-    remito: norm.texto(b.remito),
     despacho: opcion(b.despacho, DESPACHOS, 'Despacho'),
-    transporte: opcion(b.transporte, TRANSPORTES, 'Expreso'),
-    guia: norm.texto(b.guia),
-    estado_viaje: norm.texto(b.estado_viaje),
-    entrega: opcion(b.entrega, ENTREGAS, 'Entrega'),
+    envios: leerEnvios(b.envios),
   };
   if (!d.siniestro) throw new HttpError(400, 'Falta el número de siniestro');
   if (!/^[A-Z0-9]{5,8}$/.test(d.patente)) throw new HttpError(400, 'La patente no parece válida (ej: AB123CD o ABC123)');
   if (d.cantidad_piezas !== null && !(d.cantidad_piezas >= 0)) throw new HttpError(400, 'Cantidad de piezas inválida');
+  if (d.envios.length && !d.despacho) throw new HttpError(400, 'Elegí si el despacho es parcial o completo.');
   return d;
 }
 
@@ -152,18 +200,47 @@ function validarSiniestroLibre(siniestro, idActual = null) {
 const registrarEvento = (pedidoId, descripcion) =>
   db.prepare('INSERT INTO eventos (pedido_id, descripcion) VALUES (?, ?)').run(pedidoId, descripcion);
 
-// Anota en el historial los cambios de estado que ven el cliente, el taller y el perito.
+const cambio = (antes, despues, ...campos) => campos.some((c) => (antes[c] ?? '') !== (despues[c] ?? ''));
+
+// Anota en el historial los cambios que ven el cliente, el taller y el perito.
 function registrarCambios(id, antes, d) {
-  const cambio = (...campos) => campos.some((c) => (antes[c] ?? '') !== (d[c] ?? ''));
-  if (cambio('origen') && d.origen) registrarEvento(id, ORIGENES[d.origen]);
-  if (cambio('despacho', 'remito') && (d.despacho || d.remito)) {
-    registrarEvento(id, [DESPACHOS[d.despacho] || 'Despacho', d.remito && `remito ${d.remito}`].filter(Boolean).join(' — '));
+  if (cambio(antes, d, 'origen') && d.origen) registrarEvento(id, ORIGENES[d.origen]);
+  if (cambio(antes, d, 'despacho') && d.despacho) {
+    registrarEvento(id, d.despacho === 'parcial' ? 'Despacho parcial: se envía una parte y lo que falta sale después'
+      : d.envios.length > 1 ? 'Despacho completo: se envió todo el pedido' : 'Despacho total');
   }
-  if (cambio('transporte', 'guia') && (d.transporte || d.guia)) {
-    registrarEvento(id, [`Enviado por ${TRANSPORTES[d.transporte] || 'expreso'}`, d.guia && `guía ${d.guia}`].filter(Boolean).join(', '));
+}
+
+function registrarCambiosEnvio(pedidoId, antes, e, nombre) {
+  const anotar = (texto) => registrarEvento(pedidoId, nombre ? `${nombre} · ${texto}` : texto);
+  if (cambio(antes, e, 'remito') && e.remito) anotar(`Remito ${e.remito}`);
+  if (cambio(antes, e, 'transporte', 'guia') && (e.transporte || e.guia)) {
+    anotar([`Enviado por ${TRANSPORTES[e.transporte] || 'expreso'}`, e.guia && `guía ${e.guia}`].filter(Boolean).join(', '));
   }
-  if (cambio('estado_viaje') && d.estado_viaje) registrarEvento(id, d.estado_viaje);
-  if (cambio('entrega') && d.entrega) registrarEvento(id, ENTREGAS[d.entrega]);
+  if (cambio(antes, e, 'estado_viaje') && e.estado_viaje) anotar(e.estado_viaje);
+  if (cambio(antes, e, 'entrega') && e.entrega) anotar(ENTREGAS[e.entrega]);
+}
+
+// Deja los envíos del pedido como vienen del formulario: actualiza, agrega y quita.
+function guardarEnvios(pedidoId, d) {
+  const actuales = new Map(listarEnvios(pedidoId).map((e) => [e.id, e]));
+  const quedan = new Set(d.envios.map((e) => e.id).filter(Boolean));
+  for (const id of actuales.keys()) {
+    if (!quedan.has(id)) db.prepare('DELETE FROM envios WHERE id = ?').run(id);
+  }
+  const conNumero = variosEnvios(d, d.envios);
+  d.envios.forEach((e, i) => {
+    const antes = e.id ? actuales.get(e.id) : null;
+    if (e.id && !antes) throw conflicto('los envíos de este pedido');
+    if (antes) {
+      db.prepare('UPDATE envios SET remito = ?, transporte = ?, guia = ?, estado_viaje = ?, entrega = ? WHERE id = ?')
+        .run(e.remito, e.transporte, e.guia, e.estado_viaje, e.entrega, e.id);
+    } else {
+      db.prepare('INSERT INTO envios (pedido_id, remito, transporte, guia, estado_viaje, entrega) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(pedidoId, e.remito, e.transporte, e.guia, e.estado_viaje, e.entrega);
+    }
+    registrarCambiosEnvio(pedidoId, antes ?? {}, e, conNumero ? `Envío ${i + 1}` : '');
+  });
 }
 
 export function crear(d) {
@@ -174,6 +251,7 @@ export function crear(d) {
       .run(...CAMPOS.map((c) => d[c]));
     registrarEvento(lastInsertRowid, 'Pedido registrado');
     registrarCambios(lastInsertRowid, {}, d);
+    guardarEnvios(lastInsertRowid, d);
     return lastInsertRowid;
   });
   return obtener(id);
@@ -190,6 +268,7 @@ export function actualizar(id, d, version) {
       .run(...CAMPOS.map((c) => d[c]), antes.id, version ?? antes.version);
     if (!changes) throw conflicto('este pedido');
     registrarCambios(antes.id, antes, d);
+    guardarEnvios(antes.id, d);
   });
   return obtener(antes.id);
 }
