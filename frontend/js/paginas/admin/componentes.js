@@ -10,7 +10,8 @@ function resaltar(texto, q) {
 
 // Buscador: se escribe parte del nombre y se elige de la lista (con el mouse o con flechas + Enter).
 // Si se escribe algo y no se elige nada, queda lo que estaba asignado; para quitarlo está la ×.
-export function crearCombo(raiz, { lista, titulo, detalle, buscarEn }) {
+// `alElegir(u)` se llama cada vez que cambia lo elegido (u es null si quedó vacío).
+export function crearCombo(raiz, { lista, titulo, detalle, buscarEn, alElegir = () => {} }) {
   const input = raiz.querySelector('input[type=text]');
   const oculto = raiz.querySelector('input[type=hidden]');
   const ul = raiz.querySelector('ul');
@@ -45,6 +46,7 @@ export function crearCombo(raiz, { lista, titulo, detalle, buscarEn }) {
     input.value = u ? titulo(u) : '';
     quitar.classList.toggle('hidden', !u);
     cerrar();
+    alElegir(u);
   }
 
   input.addEventListener('focus', () => {

@@ -7,9 +7,6 @@
   <title>Administración — Grupo Genco Siniestros</title>
   <meta name="theme-color" content="#253883">
   <link rel="icon" href="/img/genco.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap">
   <link rel="stylesheet" href="/css/estilos.css">
 </head>
 <body class="cargando">
@@ -38,6 +35,16 @@
       <div class="page-head">
         <h1>Pedidos</h1>
         <a class="btn" href="#/pedidos/nuevo">+ Nuevo pedido</a>
+      </div>
+      <div class="card estado-expreso hidden" id="estado-sendbox">
+        <div class="estado-expreso-fila">
+          <div>
+            <strong>Sendbox</strong> <span class="badge" id="sendbox-badge"></span>
+            <div class="small muted" id="sendbox-resumen"></div>
+          </div>
+          <button class="btn outline" type="button" id="sendbox-leer">Actualizar ahora</button>
+        </div>
+        <ul class="avisos-expreso" id="sendbox-avisos"></ul>
       </div>
       <div class="card">
         <label for="buscar">Buscar</label>
@@ -69,7 +76,7 @@
                 <button type="button" class="combo-quitar hidden" aria-label="Quitar taller">×</button>
                 <ul class="combo-lista hidden" id="f-taller-lista" role="listbox"></ul>
               </div>
-              <div class="hint">Ve el pedido desde su cuenta. <a href="#/usuarios/nuevo">Crear taller</a></div></div>
+              <div class="hint"><span id="f-taller-aviso"></span> <a href="#/usuarios/nuevo">Crear taller</a></div></div>
             <div><label for="f-perito">Perito</label>
               <div class="combo" id="combo-perito">
                 <input id="f-perito" type="text" placeholder="Buscar por nombre del perito…" autocomplete="off"
@@ -78,7 +85,7 @@
                 <button type="button" class="combo-quitar hidden" aria-label="Quitar perito">×</button>
                 <ul class="combo-lista hidden" id="f-perito-lista" role="listbox"></ul>
               </div>
-              <div class="hint">Ve el pedido desde su cuenta. <a href="#/usuarios/nuevo">Crear perito</a></div></div>
+              <div class="hint"><span id="f-perito-aviso"></span> <a href="#/usuarios/nuevo">Crear perito</a></div></div>
             <div><label for="f-compania">Compañía de seguro</label><input id="f-compania" name="compania"></div>
             <div><label for="f-vehiculo">Vehículo</label><input id="f-vehiculo" name="vehiculo" placeholder="Marca, modelo y año"></div>
             <div><label for="f-cantidad">Cantidad de piezas</label><input id="f-cantidad" name="cantidad_piezas" type="number" min="0"></div>
@@ -103,7 +110,14 @@
             <option>En preparación</option><option>Retirado por el expreso</option><option>En viaje</option>
             <option>En sucursal de destino</option><option>En reparto</option>
           </datalist>
-          <div class="row" style="margin-top:24px;justify-content:space-between;align-items:center">
+          <div class="avisos-mail hidden" id="avisos-mail">
+            <div>
+              <strong>Avisos por mail</strong>
+              <div class="small muted" id="avisos-texto"></div>
+            </div>
+            <button class="btn outline" type="button" id="avisar-ahora">Enviar aviso ahora</button>
+          </div>
+          <div class="row" style="margin-top:20px;justify-content:space-between;align-items:center">
             <button class="btn danger hidden" type="button" id="borrar-pedido">Eliminar pedido</button>
             <button class="btn" type="submit" style="margin-left:auto">Guardar cambios</button>
           </div>
@@ -162,7 +176,7 @@
               <input class="grow" id="u-password" name="password" type="text" autocomplete="new-password" minlength="8">
               <button class="btn outline" type="button" id="generar" style="height:52px">Generar</button>
             </div>
-            <div class="hint" id="u-password-hint">Mínimo 8 caracteres. Compartila con la persona para que ingrese.</div></div>
+            <div class="hint" id="u-password-hint">Contraseña provisoria: compartila con la persona. En su primer ingreso va a tener que elegir una propia.</div></div>
           <div><label class="check"><input type="checkbox" name="activo" id="u-activo" checked> Usuario activo</label>
             <div class="hint">Si está inactivo no puede iniciar sesión.</div></div>
         </div>

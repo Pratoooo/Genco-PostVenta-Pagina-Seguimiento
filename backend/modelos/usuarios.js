@@ -2,7 +2,7 @@
 import { db, transaction } from '../db/conexion.js';
 import { config } from '../config.js';
 import { HttpError, conflicto } from '../lib/errores.js';
-import { hashPassword, validarPassword } from '../lib/auth.js';
+import { hashPassword, validarPassword, verifyPassword } from '../lib/auth.js';
 import * as norm from '../lib/normalizar.js';
 
 export const ROLES = { admin: 'Administrador', perito: 'Perito', taller: 'Taller' };
@@ -37,6 +37,7 @@ export function asignables(rol) {
 // Lo que ve el propio usuario de su cuenta.
 export const publico = (u) => ({
   id: u.id, email: u.email, nombre: u.nombre, empresa: u.empresa, rol: u.rol, rol_nombre: ROLES[u.rol], destino: DESTINOS[u.rol],
+  cambiar_password: Boolean(u.cambiar_password),
 });
 
 // Valida los datos de un formulario de usuario. Solo los talleres llevan "empresa" (el nombre del taller).
@@ -45,9 +46,9 @@ export const publico = (u) => ({
 export function leer(b = {}, { nuevo = false, registro = false } = {}) {
   const d = {
     email: norm.email(b.email),
-    nombre: norm.texto(b.nombre),
+    nombre: norm.texto(b.nombre, 100),
     rol: norm.texto(b.rol),
-    empresa: norm.texto(b.empresa),
+    empresa: norm.texto(b.empresa, 120),
     activo: b.activo === undefined ? 1 : b.activo ? 1 : 0,
   };
   if (!ROLES[d.rol]) throw new HttpError(400, 'Rol inválido');
@@ -57,7 +58,7 @@ export function leer(b = {}, { nuevo = false, registro = false } = {}) {
   if (!d.email) throw new HttpError(400, 'Ingresá el email.');
   if (!norm.esEmail(d.email)) throw new HttpError(400, 'El email no parece válido.');
   const password = String(b.password ?? '');
-  if (nuevo || password) validarPassword(password);
+  if (nuevo || password) validarPassword(password, { email: d.email });
   return { d, password };
 }
 
@@ -68,11 +69,13 @@ function validarEmailLibre(email, idActual = null) {
 
 const adminsActivos = () => db.prepare("SELECT COUNT(*) AS n FROM usuarios WHERE rol = 'admin' AND activo = 1").get().n;
 
-export function crear(d, password, { aprobado = true } = {}) {
+// cambiarPassword: la cuenta la crea un admin, que conoce la contraseña; la persona la cambia al ingresar.
+export function crear(d, password, { aprobado = true, cambiarPassword = false } = {}) {
   validarEmailLibre(d.email);
   const { lastInsertRowid } = db
-    .prepare('INSERT INTO usuarios (email, nombre, empresa, rol, activo, aprobado, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(d.email, d.nombre, d.empresa, d.rol, d.activo, aprobado ? 1 : 0, hashPassword(password));
+    .prepare(`INSERT INTO usuarios (email, nombre, empresa, rol, activo, aprobado, password_hash, cambiar_password)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(d.email, d.nombre, d.empresa, d.rol, d.activo, aprobado ? 1 : 0, hashPassword(password), cambiarPassword ? 1 : 0);
   return obtener(lastInsertRowid);
 }
 
@@ -98,17 +101,28 @@ export function actualizar(id, d, { password, version, editor }) {
       .run(d.email, d.nombre, d.empresa, d.rol, d.activo, antes.id, version ?? antes.version);
     if (!changes) throw conflicto('este usuario');
     if (password) {
+      // Si un admin le pone la contraseña a otra persona, esa persona la tiene que cambiar al ingresar.
       nuevoHash = hashPassword(password);
-      db.prepare('UPDATE usuarios SET password_hash = ? WHERE id = ?').run(nuevoHash, antes.id);
+      db.prepare('UPDATE usuarios SET password_hash = ?, cambiar_password = ? WHERE id = ?')
+        .run(nuevoHash, editor.id === antes.id ? 0 : 1, antes.id);
     }
   });
   return { usuario: obtener(antes.id), nuevoHash };
 }
 
+// La persona cambia su propia contraseña (desde su menú o con el enlace de recuperación).
 export function cambiarPassword(id, password) {
-  validarPassword(password);
+  const { email } = db.prepare('SELECT email FROM usuarios WHERE id = ?').get(id) ?? {};
+  validarPassword(password, { email });
   const hash = hashPassword(password);
-  db.prepare('UPDATE usuarios SET password_hash = ?, version = version + 1 WHERE id = ?').run(hash, id);
+  db.prepare('UPDATE usuarios SET password_hash = ?, cambiar_password = 0, version = version + 1 WHERE id = ?').run(hash, id);
+  return hash;
+}
+
+// Actualiza el hash de una contraseña vieja a los parámetros actuales (al ingresar, con la contraseña correcta).
+export function actualizarHash(id, password) {
+  const hash = hashPassword(password);
+  db.prepare('UPDATE usuarios SET password_hash = ? WHERE id = ?').run(hash, id);
   return hash;
 }
 
@@ -127,12 +141,20 @@ export function eliminar(id, editor) {
   db.prepare('DELETE FROM usuarios WHERE id = ?').run(u.id);
 }
 
-// Primer arranque: crea la cuenta de administración si no hay ninguna.
+// Primer arranque: crea la cuenta de administración si no hay ninguna (con cambio de contraseña obligatorio).
+// Además, cualquier administrador que siga con la contraseña inicial queda obligado a cambiarla.
 export function asegurarAdmin() {
-  if (db.prepare("SELECT 1 FROM usuarios WHERE rol = 'admin'").get()) return;
   const { email, password } = config.admin;
-  db.prepare("INSERT INTO usuarios (email, nombre, rol, password_hash) VALUES (?, 'Administración', 'admin', ?)")
-    .run(email, hashPassword(password));
-  console.warn(`⚠ Se creó la cuenta de administración ${email}${process.env.ADMIN_PASSWORD ? '' : ' con contraseña "genco-admin"'}. ` +
-    'Cambiá la contraseña al ingresar.');
+  if (!db.prepare("SELECT 1 FROM usuarios WHERE rol = 'admin'").get()) {
+    db.prepare("INSERT INTO usuarios (email, nombre, rol, password_hash, cambiar_password) VALUES (?, 'Administración', 'admin', ?, 1)")
+      .run(email, hashPassword(password));
+    console.warn(`⚠ Se creó la cuenta de administración ${email}. Al ingresar por primera vez hay que cambiar la contraseña.`);
+  }
+  const iniciales = new Set(['genco-admin', password]);
+  for (const a of db.prepare("SELECT id, email, password_hash FROM usuarios WHERE rol = 'admin' AND cambiar_password = 0").all()) {
+    if ([...iniciales].some((p) => verifyPassword(p, a.password_hash))) {
+      db.prepare('UPDATE usuarios SET cambiar_password = 1 WHERE id = ?').run(a.id);
+      console.warn(`⚠ La cuenta ${a.email} usa la contraseña inicial: al ingresar va a tener que cambiarla.`);
+    }
+  }
 }

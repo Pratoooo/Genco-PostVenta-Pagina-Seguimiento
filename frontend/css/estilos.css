@@ -1,3 +1,7 @@
+/* Fuentes servidas desde la propia página (sin depender de Google Fonts). Licencia SIL OFL: ver /fuentes. */
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fuentes/inter.woff2') format('woff2'); }
+@font-face { font-family: 'Montserrat'; font-style: normal; font-weight: 700 800; font-display: swap; src: url('/fuentes/montserrat.woff2') format('woff2'); }
+
 :root {
   --navy-900: #0e1740;
   --navy-800: #16235c;
@@ -225,6 +229,25 @@ body.cargando main { visibility: hidden; }
 .pill.sm .pulse { width: 6px; height: 6px; }
 .empty { text-align: center; padding: 36px 12px; color: var(--muted); }
 .badge.gris { background: #eef0f4; color: var(--muted); }
+.badge.error { background: var(--error-soft); color: var(--error); }
+
+/* "Recibir por mail las novedades de este pedido" (Mis pedidos) */
+.preferencia-avisos { padding: 16px 20px; background: var(--brand-soft); border-color: transparent; box-shadow: none; }
+.preferencia-avisos .check { color: var(--brand); }
+.preferencia-avisos .hint { margin-left: 30px; }
+
+/* Avisos por mail en la ficha del pedido (panel admin) */
+.avisos-mail { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 22px; padding: 14px 16px; border-radius: 12px; background: var(--brand-soft); }
+.avisos-mail strong { font-family: var(--font-display); color: var(--brand); }
+.avisos-mail .btn { height: 40px; }
+
+/* Estado de la lectura automática de Sendbox (panel admin) */
+.estado-expreso { margin-bottom: 16px; padding: 18px 22px; }
+.estado-expreso-fila { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.estado-expreso-fila strong { font-family: var(--font-display); }
+.avisos-expreso { list-style: none; padding: 0; margin: 0; }
+.avisos-expreso li { margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: #fff4e0; color: #8a4b00; font-size: .9rem; }
+.avisos-expreso a { color: inherit; font-weight: 600; }
 .badge.admin { background: #fdf0e1; color: #a35a00; }
 .check { display: flex; align-items: center; gap: 10px; font-weight: 600; cursor: pointer; margin: 0; }
 .check input { width: 20px; height: 20px; accent-color: var(--brand-2); }

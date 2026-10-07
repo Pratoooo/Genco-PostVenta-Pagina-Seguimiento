@@ -158,10 +158,10 @@ function leerEnvios(lista) {
   return lista.map((e, i) => {
     const envio = {
       id: e?.id ? Number(e.id) : null,
-      remito: norm.texto(e?.remito),
+      remito: norm.texto(e?.remito, 40),
       transporte: opcion(e?.transporte, TRANSPORTES, 'Expreso'),
-      guia: norm.texto(e?.guia),
-      estado_viaje: norm.texto(e?.estado_viaje),
+      guia: norm.texto(e?.guia, 40),
+      estado_viaje: norm.texto(e?.estado_viaje, 120),
       entrega: opcion(e?.entrega, ENTREGAS, 'Entrega'),
     };
     if (!envio.remito) throw new HttpError(400, `Falta el N° de remito del envío ${i + 1}.`);
@@ -174,12 +174,12 @@ const CAMPOS = ['siniestro', 'patente', 'taller_id', 'perito_id', 'compania', 'v
 // Valida los datos del formulario de pedido (incluidos sus envíos).
 export function leer(b = {}) {
   const d = {
-    siniestro: norm.texto(b.siniestro),
+    siniestro: norm.texto(b.siniestro, 40),
     patente: norm.patente(b.patente),
     taller_id: idUsuario(b.taller_id, 'taller'),
     perito_id: idUsuario(b.perito_id, 'perito'),
-    compania: norm.texto(b.compania),
-    vehiculo: norm.texto(b.vehiculo),
+    compania: norm.texto(b.compania, 100),
+    vehiculo: norm.texto(b.vehiculo, 100),
     cantidad_piezas: b.cantidad_piezas === '' || b.cantidad_piezas == null ? null : Number.parseInt(b.cantidad_piezas, 10),
     origen: opcion(b.origen, ORIGENES, 'Origen'),
     despacho: opcion(b.despacho, DESPACHOS, 'Despacho'),
@@ -275,4 +275,31 @@ export function actualizar(id, d, version) {
 
 export function eliminar(id) {
   db.prepare('DELETE FROM pedidos WHERE id = ?').run(obtener(id).id);
+}
+
+// ---------------------------------------------------------------- Actualización automática por expreso
+
+// Envíos de un expreso que tienen guía y todavía no llegaron (los que hay que consultar).
+export const enviosPendientes = (transporte) =>
+  db.prepare(`SELECT e.*, p.siniestro FROM envios e JOIN pedidos p ON p.id = e.pedido_id
+              WHERE e.transporte = ? AND e.guia <> '' AND e.entrega <> 'recibido' ORDER BY e.id`).all(transporte);
+
+// Aplica a un envío lo que informó el expreso. Solo guarda (y anota en el historial) si algo cambió.
+// Sube la versión del pedido: si alguien lo tenía abierto, al guardar ve el aviso de "otra persona lo modificó".
+export function actualizarEnvioDesdeExpreso(envioId, { estado_viaje, entrega }) {
+  const antes = db.prepare('SELECT * FROM envios WHERE id = ?').get(envioId);
+  if (!antes) return false;
+  const despues = { ...antes, estado_viaje: estado_viaje ?? antes.estado_viaje, entrega: entrega ?? antes.entrega };
+  if (despues.estado_viaje === antes.estado_viaje && despues.entrega === antes.entrega) return false;
+
+  const pedido = obtener(antes.pedido_id);
+  const envios = listarEnvios(pedido.id);
+  const nombre = variosEnvios(pedido, envios) ? `Envío ${envios.findIndex((e) => e.id === antes.id) + 1} · ` : '';
+  transaction(() => {
+    db.prepare('UPDATE envios SET estado_viaje = ?, entrega = ? WHERE id = ?').run(despues.estado_viaje, despues.entrega, antes.id);
+    db.prepare("UPDATE pedidos SET version = version + 1, updated_at = datetime('now') WHERE id = ?").run(pedido.id);
+    if (despues.entrega === 'recibido') registrarEvento(pedido.id, `${nombre}Recibido`);
+    else if (despues.estado_viaje !== antes.estado_viaje) registrarEvento(pedido.id, `${nombre}${despues.estado_viaje}`);
+  });
+  return true;
 }

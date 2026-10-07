@@ -136,6 +136,45 @@ const MIGRACIONES = [
       ALTER TABLE pedidos DROP COLUMN entrega;
     `);
   },
+
+  // 5 · Avisos por mail de los cambios de estado. "email_cliente": el del dueño del vehículo (opcional).
+  //     "ultimo_evento_avisado": hasta qué novedad del historial ya se avisó. Lo anterior a esta versión
+  //     se da por avisado, para no mandar mails viejos al actualizar.
+  (db) => {
+    db.exec(`
+      ALTER TABLE pedidos ADD COLUMN email_cliente TEXT NOT NULL DEFAULT '';
+      ALTER TABLE pedidos ADD COLUMN ultimo_evento_avisado INTEGER NOT NULL DEFAULT 0;
+      UPDATE pedidos SET ultimo_evento_avisado = (SELECT COALESCE(MAX(id), 0) FROM eventos WHERE pedido_id = pedidos.id);
+    `);
+  },
+
+  // 6 · Cuándo y a quién se mandó el último aviso por mail (se muestra en la ficha del pedido).
+  (db) => {
+    db.exec(`
+      ALTER TABLE pedidos ADD COLUMN ultimo_aviso_at TEXT;
+      ALTER TABLE pedidos ADD COLUMN ultimo_aviso_para TEXT NOT NULL DEFAULT '';
+    `);
+  },
+
+  // 7 · Los avisos van solo al taller y al perito (al email de su cuenta): se quita el email del cliente.
+  //     Cada uno puede desactivar los avisos de un pedido desde "Mis pedidos" (por defecto están activos).
+  (db) => {
+    db.exec(`
+      ALTER TABLE pedidos DROP COLUMN email_cliente;
+      CREATE TABLE avisos_desactivados (
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        pedido_id  INTEGER NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (usuario_id, pedido_id)
+      );
+    `);
+  },
+
+  // 8 · Seguridad: la cuenta tiene que cambiar la contraseña al ingresar (contraseña inicial del admin,
+  //     cuentas creadas por un admin o contraseñas que puso un admin). Hasta cambiarla no puede usar la página.
+  (db) => {
+    db.exec('ALTER TABLE usuarios ADD COLUMN cambiar_password INTEGER NOT NULL DEFAULT 0');
+  },
 ];
 
 export function migrar(db) {

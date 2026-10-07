@@ -1,0 +1,12 @@
+# Revisa todas las semanas si hay versiones nuevas (o con arreglos de seguridad) de las librerías
+# y abre un pull request para actualizarlas (OWASP A03: cadena de suministro).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dependencias:
+        patterns: ['*']

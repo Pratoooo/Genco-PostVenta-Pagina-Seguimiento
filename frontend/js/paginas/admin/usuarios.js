@@ -89,9 +89,17 @@ function datosDelFormulario() {
   };
 }
 
+// Contraseña provisoria al azar: en su primer ingreso la persona tiene que elegir una propia.
 function generarPassword() {
   const letras = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => letras[b % letras.length]).join('');
+  const tope = 256 - (256 % letras.length); // descarta los bytes que harían más probables algunas letras
+  let clave = '';
+  while (clave.length < 12) {
+    for (const b of crypto.getRandomValues(new Uint8Array(16))) {
+      if (b < tope && clave.length < 12) clave += letras[b % letras.length];
+    }
+  }
+  return clave;
 }
 
 $('#generar').addEventListener('click', () => {
@@ -109,8 +117,8 @@ export async function abrirUsuario(id) {
   $('#usuario-titulo').textContent = 'Nuevo usuario';
   $('#u-password-label').textContent = id ? 'Nueva contraseña' : 'Contraseña *';
   $('#u-password-hint').textContent = id
-    ? 'Dejala vacía para no cambiarla. Si la cambiás, se cierran todas sus sesiones abiertas.'
-    : 'Mínimo 8 caracteres. Compartila con la persona para que ingrese.';
+    ? 'Dejala vacía para no cambiarla. Si la cambiás, se cierran sus sesiones abiertas y al ingresar va a tener que elegir una propia.'
+    : 'Contraseña provisoria: compartila con la persona. En su primer ingreso va a tener que elegir una propia.';
   form.elements.password.required = !id;
   if (!id) {
     form.elements.rol.value = 'taller';

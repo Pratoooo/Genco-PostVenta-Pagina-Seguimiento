@@ -4,6 +4,11 @@ import { exigirSesion } from '../../comun/sesion.js';
 import { estado, cargarOpciones, alCargarOpciones } from './estado.js';
 import { cargarPedidos, abrirPedido } from './pedidos.js';
 import { cargarUsuarios, abrirUsuario } from './usuarios.js';
+import { cargarEstadoSendbox, despuesDeLeer } from './sendbox.js';
+
+// La lista de pedidos viene con el estado de la lectura de Sendbox arriba.
+const cargarListaPedidos = () => Promise.all([cargarPedidos(), cargarEstadoSendbox()]);
+despuesDeLeer(cargarPedidos);
 
 const VISTAS = ['pedidos', 'pedido', 'usuarios', 'usuario'];
 let vistaActual = null;
@@ -29,7 +34,7 @@ const RUTAS = [
   [/^#\/usuarios\/nuevo$/, 'usuario', () => abrirUsuario(null)],
   [/^#\/usuarios\/(\d+)$/, 'usuario', (m) => abrirUsuario(m[1])],
   [/^#\/usuarios$/, 'usuarios', () => cargarUsuarios()],
-  [/.*/, 'pedidos', () => cargarPedidos()],
+  [/.*/, 'pedidos', () => cargarListaPedidos()],
 ];
 
 async function route() {
@@ -59,7 +64,7 @@ if (estado.yo) {
   refrescarPeriodicamente(async () => {
     try {
       await cargarOpciones();
-      if (vistaActual === 'pedidos') await cargarPedidos();
+      if (vistaActual === 'pedidos') await cargarListaPedidos();
       if (vistaActual === 'usuarios') await cargarUsuarios();
     } catch {
       // Sin conexión por un momento: se reintenta en el próximo ciclo.

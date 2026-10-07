@@ -6,17 +6,25 @@ import { fileURLToPath } from 'node:url';
 export const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const puerto = Number(process.env.PORT) || 3000;
+// Dirección pública de la página, para armar los enlaces de los mails.
+const appUrl = (process.env.APP_URL || `http://localhost:${puerto}`).replace(/\/$/, '');
+const https = appUrl.startsWith('https://');
+// Proxies en los que se confía para saber la IP real del visitante: "loopback" (nginx en la misma
+// máquina), un número de saltos (ej. 1 detrás de Cloudflare o de un balanceador) o IPs separadas por coma.
+const proxy = (process.env.TRUST_PROXY || 'loopback').trim();
 
 export const config = {
   puerto,
-  // Dirección pública de la página, para armar los enlaces de los mails.
-  appUrl: (process.env.APP_URL || `http://localhost:${puerto}`).replace(/\/$/, ''),
+  appUrl,
+  // Publicada con HTTPS: cookies solo por conexión segura y HSTS.
+  https,
+  trustProxy: /^\d+$/.test(proxy) ? Number(proxy) : proxy,
   dirDatos: path.resolve(RAIZ, process.env.DATA_DIR || 'data'),
   dirFrontend: path.join(RAIZ, 'frontend'),
 
   sesion: {
     secreto: process.env.SESSION_SECRET || '',
-    cookieSegura: process.env.COOKIE_SECURE === '1',
+    cookieSegura: https || process.env.COOKIE_SECURE === '1',
   },
 
   // Cuenta de administración que se crea en el primer arranque.
@@ -30,5 +38,12 @@ export const config = {
   gmail: {
     usuario: (process.env.GMAIL_USUARIO || '').trim(),
     claveApp: (process.env.GMAIL_CLAVE_APP || '').replace(/\s+/g, ''),
+  },
+
+  // Cuenta de Genco en el sistema web de Sendbox, para leer solo el estado de los envíos.
+  sendbox: {
+    usuario: (process.env.SENDBOX_USUARIO || '').trim(),
+    clave: process.env.SENDBOX_CLAVE || '',
+    intervaloMin: Math.max(5, Number(process.env.SENDBOX_INTERVALO_MIN) || 30),
   },
 };

@@ -17,12 +17,14 @@ export async function api(ruta, opciones = {}) {
 }
 
 // Para páginas privadas: si la sesión se cerró (venció, o alguien cambió la contraseña de una
-// cuenta compartida), vuelve al login avisando.
+// cuenta compartida), vuelve al login avisando. Si la cuenta tiene que cambiar la contraseña, se
+// recarga la página, que pide el cambio antes de mostrar nada.
 export async function apiPrivada(ruta, opciones) {
   try {
     return await api(ruta, opciones);
   } catch (err) {
     if (err.status === 401) location.replace('/login?sesion=cerrada');
+    if (err.status === 403 && err.codigo === 'cambiar_password') location.reload();
     throw err;
   }
 }

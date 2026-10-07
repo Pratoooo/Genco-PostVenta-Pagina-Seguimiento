@@ -31,8 +31,17 @@ function tarjeta(e = {}) {
       <div><label for="${id}-entrega">Entrega</label>
         <select id="${id}-entrega" data-campo="entrega">${opciones(entregas, e.entrega, '—')}</select></div>
     </div>
+    <p class="hint envio-auto ${e.transporte === 'sendbox' ? '' : 'hidden'}">
+      El estado del viaje y la entrega se actualizan solos desde Sendbox. Cargá la guía tal como figura allá (ej: Z-0325-00000507).
+    </p>
   </div>`;
 }
+
+// Con Sendbox se avisa que el estado se completa solo.
+contenedor.addEventListener('change', (ev) => {
+  if (ev.target.dataset.campo !== 'transporte') return;
+  $('.envio-auto', ev.target.closest('.envio-form')).classList.toggle('hidden', ev.target.value !== 'sendbox');
+});
 
 // Títulos ("Envío" o "Envío 1, 2...") y textos que dependen de cuántos envíos hay y del tipo de despacho.
 function actualizar() {

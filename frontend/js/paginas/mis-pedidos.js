@@ -31,6 +31,33 @@ async function cargarLista() {
 
 const pedidoDelHash = () => location.hash.match(/^#\/pedido\/(\d+)/)?.[1];
 
+// Casilla para recibir (o no) por mail las novedades del pedido. Viene marcada; se guarda al tocarla.
+function casillaAvisos(activos) {
+  return `<div class="card preferencia-avisos">
+    <label class="check"><input type="checkbox" id="avisos-pedido" ${activos ? 'checked' : ''}>
+      Recibir por mail las novedades de este pedido</label>
+    <div class="hint" id="avisos-pedido-texto">${textoAvisos(activos)}</div>
+  </div>`;
+}
+
+const textoAvisos = (activos) => (activos
+  ? `Te avisamos a ${esc(usuario.email)} cada vez que cambie el estado.`
+  : 'No vas a recibir mails de este pedido. Lo podés seguir viendo acá cuando quieras.');
+
+async function guardarAvisos(id, casilla) {
+  casilla.disabled = true;
+  try {
+    const r = await apiPrivada(`/api/mis-pedidos/${id}/avisos`, { method: 'PUT', body: { activos: casilla.checked } });
+    casilla.checked = r.avisos_por_mail;
+    $('#avisos-pedido-texto').innerHTML = `<strong>Guardado.</strong> ${textoAvisos(r.avisos_por_mail)}`;
+  } catch (err) {
+    casilla.checked = !casilla.checked;
+    $('#avisos-pedido-texto').textContent = err.message;
+  } finally {
+    casilla.disabled = false;
+  }
+}
+
 async function route() {
   const id = pedidoDelHash();
   $('#view-lista').classList.toggle('hidden', Boolean(id));
@@ -38,7 +65,9 @@ async function route() {
   try {
     if (id) {
       $('#detalle').innerHTML = '<div class="card muted">Cargando…</div>';
-      $('#detalle').innerHTML = renderSeguimiento(await apiPrivada(`/api/mis-pedidos/${id}`));
+      const s = await apiPrivada(`/api/mis-pedidos/${id}`);
+      $('#detalle').innerHTML = casillaAvisos(s.avisos_por_mail) + renderSeguimiento(s);
+      $('#avisos-pedido').addEventListener('change', (ev) => guardarAvisos(id, ev.target));
       scrollTo(0, 0);
     } else {
       await cargarLista();
