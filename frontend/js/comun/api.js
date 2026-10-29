@@ -1,11 +1,20 @@
 // Llamadas al backend. Los errores traen el mensaje para mostrar, el código HTTP (status) y,
 // si corresponde, un código propio (por ejemplo "conflicto" cuando otra persona guardó antes).
 export async function api(ruta, opciones = {}) {
-  const res = await fetch(ruta, {
-    ...opciones,
-    headers: { 'Content-Type': 'application/json', ...opciones.headers },
-    body: opciones.body ? JSON.stringify(opciones.body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(ruta, {
+      ...opciones,
+      headers: { 'Content-Type': 'application/json', ...opciones.headers },
+      body: opciones.body ? JSON.stringify(opciones.body) : undefined,
+    });
+  } catch {
+    // El servidor está apagado o se cortó la conexión (el navegador solo dice "Failed to fetch").
+    const err = new Error('No hay conexión con la página. Revisá tu internet o que el servidor esté prendido, y probá de nuevo.');
+    err.status = 0;
+    err.codigo = 'sin_conexion';
+    throw err;
+  }
   const datos = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(datos.error || `Error ${res.status}`);

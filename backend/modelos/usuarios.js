@@ -9,7 +9,7 @@ export const ROLES = { admin: 'Administrador', perito: 'Perito', taller: 'Taller
 export const DESTINOS = { admin: '/admin', perito: '/mis-pedidos', taller: '/mis-pedidos' };
 
 const SELECT = `
-  SELECT u.id, u.email, u.nombre, u.empresa, u.rol, u.activo, u.aprobado, u.version, u.created_at,
+  SELECT u.id, u.email, u.nombre, u.empresa, u.direccion, u.rol, u.activo, u.aprobado, u.version, u.created_at,
     (SELECT COUNT(*) FROM pedidos p WHERE p.taller_id = u.id OR p.perito_id = u.id) AS pedidos
   FROM usuarios u`;
 
@@ -30,7 +30,7 @@ export const contarPendientes = () => db.prepare('SELECT COUNT(*) AS n FROM usua
 export function asignables(rol) {
   const orden = rol === 'taller' ? "COALESCE(NULLIF(empresa, ''), nombre)" : 'nombre';
   return db
-    .prepare(`SELECT id, email, nombre, empresa, activo FROM usuarios WHERE rol = ? AND aprobado = 1 ORDER BY ${orden} COLLATE NOCASE`)
+    .prepare(`SELECT id, email, nombre, empresa, direccion, activo FROM usuarios WHERE rol = ? AND aprobado = 1 ORDER BY ${orden} COLLATE NOCASE`)
     .all(rol);
 }
 
@@ -49,10 +49,13 @@ export function leer(b = {}, { nuevo = false, registro = false } = {}) {
     nombre: norm.texto(b.nombre, 100),
     rol: norm.texto(b.rol),
     empresa: norm.texto(b.empresa, 120),
+    // Talleres y peritos: dirección donde se les entregan los pedidos (para el mapa y la distancia).
+    direccion: norm.texto(b.direccion, 200),
     activo: b.activo === undefined ? 1 : b.activo ? 1 : 0,
   };
   if (!ROLES[d.rol]) throw new HttpError(400, 'Rol inválido');
   if (d.rol !== 'taller') d.empresa = '';
+  if (d.rol === 'admin') d.direccion = '';
   if (!d.nombre) throw new HttpError(400, 'Ingresá el nombre y apellido.');
   if (registro && d.rol === 'taller' && !d.empresa) throw new HttpError(400, 'Ingresá el nombre del taller.');
   if (!d.email) throw new HttpError(400, 'Ingresá el email.');
@@ -73,9 +76,9 @@ const adminsActivos = () => db.prepare("SELECT COUNT(*) AS n FROM usuarios WHERE
 export function crear(d, password, { aprobado = true, cambiarPassword = false } = {}) {
   validarEmailLibre(d.email);
   const { lastInsertRowid } = db
-    .prepare(`INSERT INTO usuarios (email, nombre, empresa, rol, activo, aprobado, password_hash, cambiar_password)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(d.email, d.nombre, d.empresa, d.rol, d.activo, aprobado ? 1 : 0, hashPassword(password), cambiarPassword ? 1 : 0);
+    .prepare(`INSERT INTO usuarios (email, nombre, empresa, direccion, rol, activo, aprobado, password_hash, cambiar_password)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(d.email, d.nombre, d.empresa, d.direccion ?? '', d.rol, d.activo, aprobado ? 1 : 0, hashPassword(password), cambiarPassword ? 1 : 0);
   return obtener(lastInsertRowid);
 }
 
@@ -96,10 +99,15 @@ export function actualizar(id, d, { password, version, editor }) {
   let nuevoHash = null;
   transaction(() => {
     const { changes } = db
-      .prepare(`UPDATE usuarios SET email = ?, nombre = ?, empresa = ?, rol = ?, activo = ?, version = version + 1
+      .prepare(`UPDATE usuarios SET email = ?, nombre = ?, empresa = ?, direccion = ?, rol = ?, activo = ?, version = version + 1
                 WHERE id = ? AND version = ?`)
-      .run(d.email, d.nombre, d.empresa, d.rol, d.activo, antes.id, version ?? antes.version);
+      .run(d.email, d.nombre, d.empresa, d.direccion ?? '', d.rol, d.activo, antes.id, version ?? antes.version);
     if (!changes) throw conflicto('este usuario');
+    // Los pedidos que van a esta cuenta y usaban su dirección anterior (o no tenían) pasan a la nueva.
+    if ((d.rol === 'taller' || d.rol === 'perito') && d.rol === antes.rol && (d.direccion ?? '') !== antes.direccion) {
+      db.prepare(`UPDATE pedidos SET destino_direccion = ? WHERE destino = ? AND ${d.rol}_id = ?
+                  AND (destino_direccion = ? OR destino_direccion = '')`).run(d.direccion ?? '', d.rol, antes.id, antes.direccion);
+    }
     if (password) {
       // Si un admin le pone la contraseña a otra persona, esa persona la tiene que cambiar al ingresar.
       nuevoHash = hashPassword(password);

@@ -1,7 +1,8 @@
 // Panel admin · Pedidos: lista, alta y edición (con el estado de cada etapa y sus envíos).
 import { apiPrivada } from '../../comun/api.js';
-import { $, esc, fecha, alerta, celda, pillEstado } from '../../comun/ui.js';
+import { $, esc, fecha, alerta, pillEstado, duracion } from '../../comun/ui.js';
 import { renderSeguimiento } from '../../comun/seguimiento.js';
+import { crearResena, FILTROS, plazoHtml } from '../../comun/resena.js';
 import { estado, alCargarOpciones, llenarSelect, avisoDeError } from './estado.js';
 import { crearCombo } from './componentes.js';
 import { pintarEnvios, leerEnvios } from './envios.js';
@@ -30,7 +31,10 @@ const comboTaller = crearCombo($('#combo-taller'), {
   titulo: (u) => u.empresa || u.nombre,
   detalle: (u) => [u.empresa && u.nombre, u.email, inactivo(u)].filter(Boolean).join(' · '),
   buscarEn: (u) => [u.empresa, u.nombre],
-  alElegir: (u) => mostrarEmailDeAvisos($('#f-taller-aviso'), u, 'Este taller'),
+  alElegir: (u) => {
+    mostrarEmailDeAvisos($('#f-taller-aviso'), u, 'Este taller');
+    sugerirDireccion();
+  },
 });
 
 // El perito se busca por su nombre, no por compañía (hay muchos más peritos que compañías).
@@ -39,26 +43,183 @@ const comboPerito = crearCombo($('#combo-perito'), {
   titulo: (u) => u.nombre,
   detalle: (u) => [u.email, inactivo(u)].filter(Boolean).join(' · '),
   buscarEn: (u) => [u.nombre, u.email],
-  alElegir: (u) => mostrarEmailDeAvisos($('#f-perito-aviso'), u, 'Este perito'),
+  alElegir: (u) => {
+    mostrarEmailDeAvisos($('#f-perito-aviso'), u, 'Este perito');
+    sugerirDireccion();
+  },
 });
 
-// ---------------------------------------------------------------- Lista
+// ---------------------------------------------------------------- Reseña de pedidos
 
-let espera;
-$('#buscar').addEventListener('input', () => {
-  clearTimeout(espera);
-  espera = setTimeout(cargarPedidos, 250);
+const resena = crearResena($('#resena-pedidos'), {
+  columnas: [
+    { titulo: 'Siniestro', html: (p) => `<strong class="nowrap">${esc(p.siniestro)}</strong><div class="small muted">${esc(p.patente)}</div>` },
+    { titulo: 'Vehículo', html: (p) => esc(p.vehiculo) },
+    { titulo: 'Taller', html: (p) => esc(p.taller) },
+    { titulo: 'Perito', html: (p) => esc(p.perito) },
+    { titulo: 'Compañía', html: (p) => esc(p.compania) },
+    { titulo: 'Expreso', html: (p) => esc(p.expresos.join(', ')) || '<span class="muted">—</span>' },
+    { titulo: 'Estado', html: (p) => pillEstado(p, true) },
+    { titulo: 'Entrega estimada', html: (p) => plazoHtml(p, true) },
+    { titulo: 'Destino', html: (p) => destinoCorto(p.ubicacion) },
+    { titulo: 'Actualizado', html: (p) => `<span class="small muted">${fecha(p.updated_at)}</span>` },
+  ],
+  selects: [FILTROS.expreso, FILTROS.compania, FILTROS.taller, FILTROS.perito],
+  extrasExcel: [
+    ['Dirección de entrega', (p) => p.ubicacion?.direccion ?? ''],
+    ['Distancia desde Genco (km)', (p) => (p.ubicacion?.km != null ? Number(p.ubicacion.km).toLocaleString('es-AR') : '')],
+    ['Tiempo en auto', (p) => duracion(p.ubicacion?.minutos)],
+  ],
+  vencidos: true,
+  enlace: (p) => `#/pedidos/${p.id}`,
+  vacio: 'Todavía no hay pedidos. Cargá el primero con «+ Nuevo pedido».',
 });
 
 export async function cargarPedidos() {
-  const filas = await apiPrivada(`/api/admin/pedidos?q=${encodeURIComponent($('#buscar').value)}`);
-  $('#tabla-pedidos').innerHTML = filas.length
-    ? filas.map((p) => `<tr class="clickable" data-href="#/pedidos/${p.id}">
-        ${celda('Siniestro', `<strong>${esc(p.siniestro)}</strong>`)}${celda('Patente', esc(p.patente))}
-        ${celda('Vehículo', esc(p.vehiculo))}${celda('Taller', esc(p.taller))}${celda('Perito', esc(p.perito))}
-        ${celda('Compañía', esc(p.compania))}${celda('Estado', pillEstado(p, true))}
-        ${celda('Actualizado', `<span class="small muted">${fecha(p.updated_at)}</span>`)}</tr>`).join('')
-    : '<tr><td colspan="8" class="empty">No hay pedidos.</td></tr>';
+  resena.cargar(await apiPrivada('/api/admin/pedidos'));
+}
+
+// Plazo de entrega con un clic: hoy + N días.
+$('#plazos-rapidos').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-dias]');
+  if (!b) return;
+  const d = new Date();
+  d.setDate(d.getDate() + Number(b.dataset.dias));
+  form.elements.plazo_entrega.value = d.toLocaleDateString('en-CA');
+});
+
+// ---------------------------------------------------------------- Destino del envío
+
+// 694.5 -> "694,5 km"
+const kms = (km) => `${Number(km).toLocaleString('es-AR')} km`;
+
+// En la reseña: distancia y tiempo (la dirección completa al pasar el mouse).
+function destinoCorto(u) {
+  if (!u || u.estado === 'sin_direccion') return '<span class="muted">—</span>';
+  const titulo = `title="${esc(u.direccion)}"`;
+  if (u.estado === 'ok') return `<span ${titulo}><strong class="nowrap">${esc(kms(u.km))}</strong><div class="small muted nowrap">${esc(duracion(u.minutos))}</div></span>`;
+  if (u.estado === 'no_encontrada') return `<span class="badge pendiente" ${titulo}>Revisar dirección</span>`;
+  return `<span class="small muted" ${titulo}>Sin calcular</span>`;
+}
+
+const inputDestino = form.elements.destino_direccion;
+const destinoElegido = () => form.querySelector('input[name=destino]:checked')?.value ?? '';
+let ubicacionGuardada = null;
+
+// Cuenta (taller o perito) elegida arriba en el formulario.
+function cuentaDestino(tipo) {
+  const lista = tipo === 'taller' ? estado.opciones?.talleres : tipo === 'perito' ? estado.opciones?.peritos : null;
+  const id = form.elements[`${tipo}_id`]?.value;
+  return (lista ?? []).find((u) => String(u.id) === String(id));
+}
+
+// Con "Al taller" / "Al perito" la dirección se completa con la de su cuenta (salvo que se haya escrito otra).
+function sugerirDireccion() {
+  const tipo = destinoElegido();
+  const ayuda = $('#destino-ayuda');
+  if (tipo === 'taller' || tipo === 'perito') {
+    const quien = tipo === 'taller' ? 'el taller' : 'el perito';
+    const u = cuentaDestino(tipo);
+    if (!u) {
+      ayuda.textContent = `Elegí ${quien} arriba y se usa su dirección.`;
+    } else if (u.direccion) {
+      if (!inputDestino.dataset.manual) inputDestino.value = u.direccion;
+      ayuda.textContent = inputDestino.value.trim() === u.direccion
+        ? `Dirección de ${u.empresa || u.nombre}.`
+        : `Se usa la dirección escrita (la de ${u.empresa || u.nombre} es ${u.direccion}).`;
+    } else {
+      ayuda.textContent = `${u.empresa || u.nombre} no tiene dirección cargada: escribila acá o cargala en Usuarios.`;
+    }
+  } else {
+    ayuda.textContent = 'Escribí la dirección completa: calle y número, ciudad y provincia.';
+  }
+  marcarDesactualizado();
+}
+
+// Si se cambió la dirección y todavía no se guardó, el mapa de abajo es el de la dirección anterior.
+function marcarDesactualizado() {
+  const nota = $('#destino-mapa .destino-pendiente');
+  if (nota) nota.classList.toggle('hidden', inputDestino.value.trim() === (ubicacionGuardada?.direccion ?? ''));
+}
+
+form.addEventListener('change', (ev) => {
+  if (ev.target.name !== 'destino') return;
+  inputDestino.dataset.manual = '';
+  if (ev.target.value === 'otra') {
+    inputDestino.value = '';
+    inputDestino.focus();
+  }
+  sugerirDireccion();
+});
+inputDestino.addEventListener('input', () => {
+  inputDestino.dataset.manual = inputDestino.value.trim() ? '1' : '';
+  marcarDesactualizado();
+});
+
+const MENSAJES_UBICACION = {
+  no_encontrada: 'No encontramos esta dirección en el mapa. Revisala: calle y número, ciudad y provincia (ej: Av. Colón 1234, Córdoba).',
+  sin_origen: 'Para calcular la distancia y el tiempo falta cargar la dirección de Genco (GENCO_DIRECCION en la configuración).',
+  origen_no_encontrado: 'No encontramos la dirección de Genco en el mapa: revisá GENCO_DIRECCION en la configuración.',
+  sin_ruta: 'No hay una ruta en auto hasta ese punto.',
+  error: 'El servicio de mapas no respondió. Se vuelve a intentar solo.',
+  calculando: 'Buscando la dirección en el mapa…',
+};
+
+let reintentos = 0;
+function pintarUbicacion(u) {
+  ubicacionGuardada = u;
+  const caja = $('#destino-mapa');
+  if (!u || u.estado === 'sin_direccion') {
+    caja.classList.add('hidden');
+    caja.innerHTML = '';
+    return;
+  }
+  const punto = u.direccion;
+  const enGoogle = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(punto)}`;
+  const desde = u.origen_punto || u.origen;
+  const rutaGoogle = desde
+    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(desde)}&destination=${encodeURIComponent(punto)}&travelmode=driving`
+    : '';
+  const d = 0.02;
+  const mapa = u.lat != null
+    ? `<iframe title="Mapa del destino" loading="lazy" referrerpolicy="no-referrer"
+        src="https://www.openstreetmap.org/export/embed.html?bbox=${u.lon - d},${u.lat - d * 0.6},${u.lon + d},${u.lat + d * 0.6}&layer=mapnik&marker=${u.lat},${u.lon}"></iframe>`
+    : '';
+  const numeros = u.estado === 'ok'
+    ? `<div class="destino-numeros">
+        <div><strong>${esc(kms(u.km))}</strong><span>Distancia</span></div>
+        <div><strong>${esc(duracion(u.minutos))}</strong><span>En auto, aprox.</span></div>
+      </div>`
+    : '';
+  caja.classList.remove('hidden');
+  caja.classList.toggle('sin-mapa', !mapa);
+  caja.innerHTML = `${mapa}
+    <div class="destino-datos">
+      <p class="destino-direccion"><strong>${esc(u.direccion)}</strong>
+        ${u.lugar ? `<span class="small muted">Ubicado en el mapa como: ${esc(u.lugar)}. Si no es ahí, completá la ciudad y la provincia.</span>` : ''}</p>
+      ${numeros}
+      ${MENSAJES_UBICACION[u.estado] ? `<p class="destino-aviso">${esc(MENSAJES_UBICACION[u.estado])}</p>` : ''}
+      ${u.estado === 'ok' ? `<p class="small muted">Desde Genco: ${esc(u.origen)}. El expreso puede tardar más que un auto.</p>` : ''}
+      <p class="destino-aviso destino-pendiente hidden">Cambiaste la dirección: guardá para actualizar el mapa.</p>
+      <div class="destino-acciones">
+        ${rutaGoogle ? `<a class="btn outline" href="${esc(rutaGoogle)}" target="_blank" rel="noopener noreferrer">Ver ruta en Google Maps ↗</a>` : ''}
+        <a class="btn ghost" href="${esc(enGoogle)}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps ↗</a>
+      </div>
+    </div>`;
+  marcarDesactualizado();
+  // Si la dirección todavía se está buscando, se vuelve a consultar en unos segundos.
+  if (u.estado === 'calculando' && reintentos < 4 && form.dataset.id) {
+    reintentos++;
+    const id = form.dataset.id;
+    setTimeout(async () => {
+      if (form.dataset.id !== id) return;
+      try {
+        pintarUbicacion((await apiPrivada(`/api/admin/pedidos/${id}`)).ubicacion);
+      } catch {
+        // Se ve la próxima vez que se abra el pedido.
+      }
+    }, 3000);
+  }
 }
 
 // ---------------------------------------------------------------- Avisos por mail
@@ -88,7 +249,7 @@ $('#avisar-ahora').addEventListener('click', async () => {
   try {
     const r = await apiPrivada(`/api/admin/pedidos/${form.dataset.id}/avisar`, { method: 'POST' });
     pintarAvisos(r);
-    alerta($('#pedido-msg'), 'ok', `Aviso enviado a ${r.enviados.join(', ')}.`);
+    alerta($('#pedido-msg'), 'ok', `Aviso enviado a ${r.enviados.join(', ')}. Si no lo ven, que revisen la carpeta de Spam.`);
   } catch (err) {
     alerta($('#pedido-msg'), 'error', err.message);
   } finally {
@@ -111,16 +272,26 @@ export async function abrirPedido(id) {
   comboPerito.set(null);
   pintarEnvios([]);
   pintarAvisos(null);
-  if (!id) return form.elements.siniestro.focus();
+  reintentos = 0;
+  pintarUbicacion(null);
+  inputDestino.dataset.manual = '';
+  if (!id) {
+    sugerirDireccion();
+    return form.elements.siniestro.focus();
+  }
 
   const p = await apiPrivada(`/api/admin/pedidos/${id}`);
   $('#pedido-titulo').textContent = `Siniestro ${p.siniestro}`;
-  for (const el of form.elements) if (el.name) el.value = p[el.name] ?? '';
+  for (const el of form.elements) if (el.name && el.type !== 'radio') el.value = p[el.name] ?? '';
+  form.querySelectorAll('input[name=destino]').forEach((r) => (r.checked = r.value === (p.destino || 'taller')));
+  inputDestino.dataset.manual = p.destino_direccion ? '1' : '';
   form.dataset.version = p.version;
   comboTaller.set(p.taller_id);
   comboPerito.set(p.perito_id);
   pintarEnvios(p.envios);
   pintarAvisos(p.avisos);
+  pintarUbicacion(p.ubicacion);
+  sugerirDireccion();
   $('#preview').innerHTML = renderSeguimiento(p.seguimiento);
 }
 

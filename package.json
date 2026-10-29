@@ -9,7 +9,6 @@
     "start": "node --env-file-if-exists=.env backend/servidor.js",
     "dev": "node --watch --env-file-if-exists=.env backend/servidor.js",
     "probar-mail": "node --env-file-if-exists=.env backend/scripts/probar-mail.js",
-    "probar-sendbox": "node --env-file-if-exists=.env backend/scripts/probar-sendbox.js",
     "vista-previa-aviso": "node --env-file-if-exists=.env backend/scripts/vista-previa-aviso.js",
     "auditar": "npm audit --omit=dev"
   },
@@ -18,7 +17,6 @@
   },
   "dependencies": {
     "express": "^5.1.0",
-    "nodemailer": "^10.0.16",
-    "playwright": "^1.63.0"
+    "nodemailer": "^10.0.16"
   }
 }

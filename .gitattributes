@@ -1,0 +1,4 @@
+# Los scripts del servidor tienen que quedar con saltos de línea de Linux.
+*.sh text eol=lf
+*.service text eol=lf
+deploy/*.conf text eol=lf

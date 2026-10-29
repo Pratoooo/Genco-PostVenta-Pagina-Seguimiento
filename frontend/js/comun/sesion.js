@@ -10,11 +10,12 @@ export async function sesionActual() {
   }
 }
 
-// Sin sesión va al login; con otro rol, a su propia sección. Si está todo bien, muestra la página.
+// Sin sesión va al login (y después de ingresar vuelve a esta misma página, por ejemplo al pedido del enlace
+// de un mail); con otro rol, a su propia sección. Si está todo bien, muestra la página.
 export async function exigirSesion(roles) {
   const u = await sesionActual();
   if (!u) {
-    location.replace('/login');
+    location.replace(`/login?volver=${encodeURIComponent(location.pathname + location.hash)}`);
     return null;
   }
   if (!roles.includes(u.rol)) {

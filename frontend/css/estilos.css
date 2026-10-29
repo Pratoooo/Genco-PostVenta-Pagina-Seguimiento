@@ -35,6 +35,7 @@ a { color: var(--brand-2); }
 .container { width: 100%; max-width: 1040px; margin: 0 auto; padding: 0 16px; }
 .muted { color: var(--muted); }
 .small { font-size: .875rem; }
+.nowrap { white-space: nowrap; }
 .hidden { display: none !important; }
 svg.i { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
@@ -134,12 +135,22 @@ input:focus, select:focus { outline: none; background: #fff; border-color: var(-
 
 /* Envíos de un pedido (uno, o varios si el despacho es parcial) */
 .envios { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 10px; }
-.envio { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; background: var(--field); }
+.envio { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; background: var(--field); }
 .envio-ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); flex: none; }
 .envio-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .envio-txt strong { font-family: var(--font-display); }
 .envio-txt span { font-size: .88rem; color: var(--muted); overflow-wrap: anywhere; }
 .envio-txt .envio-viaje { color: var(--brand); font-weight: 600; }
+/* Seguir el envío en la página del expreso */
+.seguir { flex-basis: 100%; margin: 0 0 0 56px; padding: 14px 16px; border-radius: 12px; background: #fff; border: 1px solid var(--border); }
+.seguir-titulo { margin: 0 0 10px; font-weight: 700; font-size: .92rem; color: var(--text); }
+.seguir-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seguir-guia { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 1rem; font-weight: 700; letter-spacing: .02em; padding: 9px 12px; border-radius: 10px; background: var(--brand-soft); color: var(--brand); user-select: all; overflow-wrap: anywhere; }
+.seguir .btn { height: 40px; padding: 0 16px; font-size: .9rem; }
+.seguir-ayuda { margin: 8px 0 0; font-size: .82rem; color: var(--muted); }
+.aviso-breve { position: fixed; left: 50%; bottom: 24px; z-index: 50; max-width: calc(100% - 32px); padding: 12px 18px; border-radius: 12px; background: var(--navy-900); color: #fff; font-size: .92rem; box-shadow: var(--shadow-lg);
+  opacity: 0; transform: translate(-50%, 16px); pointer-events: none; transition: opacity .2s, transform .2s; }
+.aviso-breve.visible { opacity: 1; transform: translate(-50%, 0); }
 .aviso-parcial { margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; background: #fff4e0; color: #8a4b00; font-size: .9rem; }
 
 /* Panel admin: carga de envíos */
@@ -148,6 +159,41 @@ input:focus, select:focus { outline: none; background: #fff; border-color: var(-
 .envio-form { margin-top: 12px; padding: 16px 18px; border: 1px solid var(--border); border-left: 4px solid var(--brand-2); border-radius: 14px; }
 .envio-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
 .envio-head strong { font-family: var(--font-display); }
+.envio-pagina a { font-weight: 600; }
+/* Expreso y "¿dónde está?" se eligen con un clic */
+.campo-chips { border: 0; padding: 0; margin: 16px 0 0; min-width: 0; }
+.campo-chips legend { font-weight: 600; font-size: .85rem; margin-bottom: 8px; padding: 0; color: var(--text); }
+.chips-elegir { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-opcion { position: relative; margin: 0; cursor: pointer; }
+.chip-opcion input { position: absolute; opacity: 0; pointer-events: none; }
+.chip-opcion span { display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 99px; border: 1.5px solid var(--border); background: #fff; font-weight: 600; font-size: .9rem; color: var(--text); transition: background .15s, border-color .15s, color .15s; }
+.chip-opcion:hover span { border-color: var(--brand-2); }
+.chip-opcion input:checked + span { background: var(--brand-2); border-color: var(--brand-2); color: #fff; }
+.chip-opcion input[value=recibido]:checked + span { background: var(--ok); border-color: var(--ok); }
+.chip-opcion input:focus-visible + span { outline: 2px solid var(--brand-2); outline-offset: 2px; }
+.campo-viaje { margin-top: 16px; }
+.campo-viaje label .muted { font-weight: 400; }
+.estados-rapidos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip-rapido { font: inherit; font-size: .82rem; height: 32px; padding: 0 12px; border-radius: 99px; border: 1px dashed #b7c3e3; background: var(--field); color: var(--brand); cursor: pointer; }
+.chip-rapido:hover { border-style: solid; border-color: var(--brand-2); }
+.chip-rapido.activo { background: var(--brand-soft); border: 1px solid var(--brand-2); }
+/* Destino del envío: dirección, mapa, distancia y tiempo desde Genco */
+.campo-ancho { grid-column: 1 / -1; }
+.campo-destino .campo-chips { margin-top: 0; }
+.destino-mapa { margin-top: 14px; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 18px; padding: 14px; border: 1px solid var(--border); border-radius: 16px; background: #fff; }
+.destino-mapa.sin-mapa { grid-template-columns: 1fr; }
+.destino-mapa iframe { width: 100%; height: 280px; border: 0; border-radius: 12px; background: var(--field); }
+.destino-datos { display: flex; flex-direction: column; gap: 12px; justify-content: center; min-width: 0; }
+.destino-direccion { margin: 0; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 4px; }
+.destino-numeros { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.destino-numeros div { background: var(--field); border-radius: 12px; padding: 12px 14px; }
+.destino-numeros strong { display: block; font-family: var(--font-display); font-size: 1.45rem; line-height: 1.15; color: var(--brand); }
+.destino-numeros span { font-size: .74rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.destino-aviso { margin: 0; padding: 10px 12px; border-radius: 10px; background: #fff4e0; color: #8a4b00; font-size: .88rem; }
+.destino-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.destino-acciones .btn { height: 40px; }
+/* Guardar siempre a mano mientras se editan los envíos */
+.barra-guardar { position: sticky; bottom: 0; z-index: 5; margin: 20px -28px -28px; padding: 14px 28px; background: rgba(255, 255, 255, .94); backdrop-filter: blur(6px); border-top: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); }
 .updated { margin: 18px 0 0; font-size: .82rem; color: var(--muted); text-align: right; }
 
 .timeline { list-style: none; padding: 0; margin: 14px 0 0; }
@@ -227,6 +273,19 @@ body.cargando main { visibility: hidden; }
 .stat.ok strong { color: var(--ok); }
 .pill.sm { font-size: .8rem; padding: 4px 10px; gap: 6px; }
 .pill.sm .pulse { width: 6px; height: 6px; }
+/* Reseña de pedidos: números por estado (filtran al tocarlos), filtros y lista */
+.resena-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stat-filtro { font: inherit; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.stat-filtro:hover { border-color: var(--brand-2); transform: translateY(-1px); }
+.stat-filtro[aria-pressed="true"] { border-color: var(--brand-2); box-shadow: 0 0 0 3px rgba(47, 79, 180, .2), var(--shadow); }
+.stat-filtro.alerta strong { color: var(--error); }
+.filtros { display: grid; gap: 12px; }
+.mas-filtros .boton-filtros { display: none; }
+.filtros-grilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 14px; }
+.resena-barra { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+.resena-cuenta { font-size: .88rem; color: var(--muted); }
+.resena-acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+.fila-vencida td:first-child { box-shadow: inset 4px 0 0 var(--error); }
 .empty { text-align: center; padding: 36px 12px; color: var(--muted); }
 .badge.gris { background: #eef0f4; color: var(--muted); }
 .badge.error { background: var(--error-soft); color: var(--error); }
@@ -236,18 +295,35 @@ body.cargando main { visibility: hidden; }
 .preferencia-avisos .check { color: var(--brand); }
 .preferencia-avisos .hint { margin-left: 30px; }
 
+/* "Revisá el Spam": donde la página manda mails (recuperar la contraseña, novedades de los pedidos) */
+.aviso-spam { display: flex; gap: 12px; align-items: flex-start; margin: 16px 0 0; padding: 12px 16px; border-radius: 12px; background: #fff4e0; color: #8a4b00; font-size: .9rem; line-height: 1.45; text-align: left; }
+.aviso-spam [data-icono], .aviso-spam > svg.i { flex: none; display: inline-flex; margin-top: 1px; }
+.aviso-spam svg.i { width: 20px; height: 20px; }
+.exito .aviso-spam { display: block; text-align: center; }
+.hint-spam { margin-top: 6px; font-size: .82rem; color: #8a4b00; }
+/* Versión corta, centrada, arriba de "Mis pedidos" */
+.aviso-spam-linea { width: fit-content; max-width: 100%; margin: 0 auto 18px; padding: 8px 18px; border-radius: 99px; background: #fff4e0; color: #8a4b00; font-size: .875rem; line-height: 1.45; text-align: center; }
+.aviso-spam-linea [data-icono] { display: inline-flex; vertical-align: -3px; margin-right: 6px; }
+.aviso-spam-linea svg.i { width: 17px; height: 17px; }
+
+/* "¿Ya te llegó?": el taller o el perito confirma la llegada de cada envío (Mis pedidos) */
+.aviso-detalle { margin: 0 0 16px; }
+.recepcion { border: 2px solid var(--ok); }
+.recepcion h3 { margin: 0 0 6px; color: var(--ok); }
+.recepcion p { margin: 0 0 14px; color: var(--muted); }
+.recepcion ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.recepcion li { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--ok-soft); }
+.recepcion-txt { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
+.recepcion-txt strong { font-family: var(--font-display); }
+.recepcion-txt span { font-size: .88rem; color: var(--muted); overflow-wrap: anywhere; }
+.recepcion .btn { background: var(--ok); box-shadow: 0 8px 18px rgba(19, 138, 82, .28); }
+.por-confirmar { margin-top: 6px; font-size: .8rem; font-weight: 600; color: var(--ok); }
+
 /* Avisos por mail en la ficha del pedido (panel admin) */
 .avisos-mail { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 22px; padding: 14px 16px; border-radius: 12px; background: var(--brand-soft); }
 .avisos-mail strong { font-family: var(--font-display); color: var(--brand); }
 .avisos-mail .btn { height: 40px; }
 
-/* Estado de la lectura automática de Sendbox (panel admin) */
-.estado-expreso { margin-bottom: 16px; padding: 18px 22px; }
-.estado-expreso-fila { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.estado-expreso-fila strong { font-family: var(--font-display); }
-.avisos-expreso { list-style: none; padding: 0; margin: 0; }
-.avisos-expreso li { margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: #fff4e0; color: #8a4b00; font-size: .9rem; }
-.avisos-expreso a { color: inherit; font-weight: 600; }
 .badge.admin { background: #fdf0e1; color: #a35a00; }
 .check { display: flex; align-items: center; gap: 10px; font-weight: 600; cursor: pointer; margin: 0; }
 .check input { width: 20px; height: 20px; accent-color: var(--brand-2); }
@@ -331,14 +407,27 @@ body.cargando main { visibility: hidden; }
   .step::before { left: 27px; right: auto; top: -22px; width: 4px; height: 22px; }
   .step .dot { margin: 0; }
   .updated { text-align: left; }
-  .envio { flex-wrap: wrap; }
+  .envio-txt { flex-basis: calc(100% - 56px); }
   .envio .pill { margin-left: 56px; }
   .envio-form { padding: 14px; }
+  .barra-guardar { margin: 20px -20px -20px; padding: 12px 20px; }
+  .barra-guardar .btn { padding: 0 16px; }
+  .destino-mapa { grid-template-columns: 1fr; }
+  .destino-mapa iframe { height: 220px; }
+  .seguir { margin-left: 0; }
+  .seguir .btn { flex: 1; }
+  .recepcion .btn { width: 100%; }
+  .aviso-spam-linea { border-radius: 14px; padding: 8px 14px; font-size: .84rem; }
   .header-tag { display: none; }
   .user-txt, .header-right .divider, .ocultar-movil { display: none; }
   .header-right { gap: 10px; }
   .user-menu summary { padding-right: 6px; }
   .stats { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .resena-stats { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mas-filtros .boton-filtros { display: inline-flex; }
+  .mas-filtros:not(.abierto) .filtros-grilla { display: none; }
+  .mas-filtros.abierto .filtros-grilla { margin-top: 12px; }
+  .resena-acciones, .resena-acciones .btn { width: 100%; }
   .stat { padding: 12px; }
   .stat strong { font-size: 1.5rem; }
   .stat span { font-size: .66rem; }

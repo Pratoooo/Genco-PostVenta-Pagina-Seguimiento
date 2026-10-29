@@ -33,29 +33,13 @@
     <!-- Lista de pedidos -->
     <section id="view-pedidos" class="hidden">
       <div class="page-head">
-        <h1>Pedidos</h1>
+        <div>
+          <h1>Pedidos</h1>
+          <p>Reseña de todos los pedidos: tocá un número para filtrar por estado.</p>
+        </div>
         <a class="btn" href="#/pedidos/nuevo">+ Nuevo pedido</a>
       </div>
-      <div class="card estado-expreso hidden" id="estado-sendbox">
-        <div class="estado-expreso-fila">
-          <div>
-            <strong>Sendbox</strong> <span class="badge" id="sendbox-badge"></span>
-            <div class="small muted" id="sendbox-resumen"></div>
-          </div>
-          <button class="btn outline" type="button" id="sendbox-leer">Actualizar ahora</button>
-        </div>
-        <ul class="avisos-expreso" id="sendbox-avisos"></ul>
-      </div>
-      <div class="card">
-        <label for="buscar">Buscar</label>
-        <input id="buscar" placeholder="Siniestro, patente, taller, perito, compañía, remito o guía">
-        <div class="table-wrap">
-          <table class="tabla-resp">
-            <thead><tr><th>Siniestro</th><th>Patente</th><th>Vehículo</th><th>Taller</th><th>Perito</th><th>Compañía</th><th>Estado</th><th>Actualizado</th></tr></thead>
-            <tbody id="tabla-pedidos"></tbody>
-          </table>
-        </div>
-      </div>
+      <div id="resena-pedidos"></div>
     </section>
 
     <!-- Alta / edición de pedido -->
@@ -89,6 +73,28 @@
             <div><label for="f-compania">Compañía de seguro</label><input id="f-compania" name="compania"></div>
             <div><label for="f-vehiculo">Vehículo</label><input id="f-vehiculo" name="vehiculo" placeholder="Marca, modelo y año"></div>
             <div><label for="f-cantidad">Cantidad de piezas</label><input id="f-cantidad" name="cantidad_piezas" type="number" min="0"></div>
+            <div><label for="f-plazo">Plazo de entrega</label><input id="f-plazo" name="plazo_entrega" type="date">
+              <div class="estados-rapidos" id="plazos-rapidos">
+                <button type="button" class="chip-rapido" data-dias="3">En 3 días</button>
+                <button type="button" class="chip-rapido" data-dias="7">En 1 semana</button>
+                <button type="button" class="chip-rapido" data-dias="15">En 15 días</button>
+                <button type="button" class="chip-rapido" data-dias="30">En 1 mes</button>
+              </div>
+              <div class="hint">Fecha estimada en que llega el pedido. La ven el taller y el perito.</div></div>
+            <div class="campo-ancho campo-destino">
+              <fieldset class="campo-chips">
+                <legend>¿A dónde se envía?</legend>
+                <div class="chips-elegir">
+                  <label class="chip-opcion"><input type="radio" name="destino" value="taller" checked><span>Al taller</span></label>
+                  <label class="chip-opcion"><input type="radio" name="destino" value="perito"><span>Al perito</span></label>
+                  <label class="chip-opcion"><input type="radio" name="destino" value="otra"><span>Otra dirección</span></label>
+                </div>
+              </fieldset>
+              <label for="f-destino-direccion" style="margin-top:14px">Dirección de entrega</label>
+              <input id="f-destino-direccion" name="destino_direccion" autocomplete="off" placeholder="Calle y número, ciudad y provincia (ej: Av. Colón 1234, Córdoba)">
+              <div class="hint" id="destino-ayuda"></div>
+              <div class="destino-mapa hidden" id="destino-mapa"></div>
+            </div>
           </div>
         </div>
 
@@ -99,25 +105,22 @@
             <div><label for="f-despacho">2 · Despacho</label><select id="f-despacho" name="despacho"></select></div>
           </div>
 
-          <h4 class="subtitulo">3 · Envíos <span>Remito, expreso, guía y entrega de cada envío</span></h4>
+          <h4 class="subtitulo">3 · Envíos <span>Remito, expreso, guía y estado de cada envío. Todo se carga a mano.</span></h4>
           <div id="envios"></div>
           <p class="aviso-parcial hidden" id="envios-ayuda">
             Despacho parcial: cuando mandes lo que falta, agregá otro envío con su remito y su número de guía,
             y pasá el despacho a <strong>Completo</strong>.
           </p>
           <button type="button" class="btn outline" id="agregar-envio" style="margin-top:12px">+ Agregar envío</button>
-          <datalist id="estados-viaje">
-            <option>En preparación</option><option>Retirado por el expreso</option><option>En viaje</option>
-            <option>En sucursal de destino</option><option>En reparto</option>
-          </datalist>
           <div class="avisos-mail hidden" id="avisos-mail">
             <div>
               <strong>Avisos por mail</strong>
               <div class="small muted" id="avisos-texto"></div>
+              <div class="hint-spam">Si al taller o al perito no les llegan, que revisen la carpeta de Spam o Correo no deseado y marquen el mail como «No es spam».</div>
             </div>
             <button class="btn outline" type="button" id="avisar-ahora">Enviar aviso ahora</button>
           </div>
-          <div class="row" style="margin-top:20px;justify-content:space-between;align-items:center">
+          <div class="row barra-guardar" style="justify-content:space-between;align-items:center">
             <button class="btn danger hidden" type="button" id="borrar-pedido">Eliminar pedido</button>
             <button class="btn" type="submit" style="margin-left:auto">Guardar cambios</button>
           </div>
@@ -168,6 +171,9 @@
           <div><label for="u-rol">Rol *</label><select id="u-rol" name="rol" required></select></div>
           <div id="u-taller-campo"><label for="u-empresa">Nombre del taller</label>
             <input id="u-empresa" placeholder="Ej: Taller Norte"></div>
+          <div id="u-direccion-campo" class="campo-ancho"><label for="u-direccion">Dirección de entrega</label>
+            <input id="u-direccion" autocomplete="off" placeholder="Calle y número, ciudad y provincia (ej: Av. Colón 1234, Córdoba)">
+            <div class="hint">Adónde se le mandan los pedidos: se usa para el mapa, la distancia y el tiempo desde Genco.</div></div>
           <div><label for="u-nombre">Nombre y apellido *</label><input id="u-nombre" name="nombre" required placeholder="Ej: Juan Pérez"></div>
           <div><label for="u-email">Email *</label><input id="u-email" name="email" type="email" required autocapitalize="none" spellcheck="false" placeholder="nombre@ejemplo.com">
             <div class="hint">Con este email ingresa y recupera la contraseña.</div></div>

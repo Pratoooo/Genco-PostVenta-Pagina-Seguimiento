@@ -11,7 +11,7 @@
 import { config } from '../config.js';
 import { db } from '../db/conexion.js';
 import { HttpError } from '../lib/errores.js';
-import { enviarMail, plantillaMail } from '../lib/mailer.js';
+import { enviarMail, plantillaMail, notaSpam } from '../lib/mailer.js';
 import { escHtml as esc } from '../lib/normalizar.js';
 import * as pedidos from '../modelos/pedidos.js';
 
@@ -49,9 +49,10 @@ export function cambiarAvisos(usuarioId, pedidoId, activos) {
 export function destinatarios(p) {
   const lista = [];
   for (const id of [p.taller_id, p.perito_id]) {
-    const u = id && db.prepare('SELECT id, nombre, email, activo, aprobado FROM usuarios WHERE id = ?').get(id);
+    const u = id && db.prepare('SELECT id, nombre, email, rol, activo, aprobado FROM usuarios WHERE id = ?').get(id);
     if (u?.activo && u.aprobado && emailReal(u.email) && avisosActivos(u.id, p.id) && !lista.some((d) => d.email === u.email)) {
-      lista.push({ email: u.email, nombre: u.nombre });
+      // `confirma`: es quien recibe el paquete, así que el mail le recuerda confirmar que le llegó.
+      lista.push({ email: u.email, nombre: u.nombre, confirma: pedidos.puedeConfirmarRecepcion(p, u) });
     }
   }
   return lista;
@@ -95,7 +96,9 @@ function listaEnvios(s) {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
           <td style="font-size:14px"><strong>${numerar ? `Envío ${i + 1}` : 'Envío'}</strong><br>
             <span style="font-size:13px;color:${GRIS}">${esc(datos)}</span>
-            ${e.estado_viaje && !e.recibido ? `<br><span style="font-size:13px;color:${AZUL};font-weight:bold">${esc(e.estado_viaje)}</span>` : ''}</td>
+            ${e.estado_viaje && !e.recibido ? `<br><span style="font-size:13px;color:${AZUL};font-weight:bold">${esc(e.estado_viaje)}</span>` : ''}
+            ${e.seguimiento_url && !e.recibido ? `<br><a href="${esc(e.seguimiento_url)}" style="display:inline-block;margin-top:6px;font-size:13px;color:${AZUL};font-weight:bold">Seguir el envío en ${esc(e.transporte)} →</a>
+              <span style="font-size:12px;color:${GRIS}">(pegá la guía ${esc(e.guia)} en su buscador)</span>` : ''}</td>
           <td align="right" style="white-space:nowrap"><span style="display:inline-block;padding:4px 10px;border-radius:99px;background:${e.recibido ? '#e2f5ec' : '#eaf0ff'};color:${color};font-size:12px;font-weight:bold">${esc(e.estado)}</span></td>
         </tr></table>
       </td></tr><tr><td style="height:8px"></td></tr>`;
@@ -107,12 +110,27 @@ function listaEnvios(s) {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${filas}</table>${parcial}`;
 }
 
-function datosPedido(p) {
-  const datos = [['Patente', p.patente], ['Vehículo', p.vehiculo], ['Taller', p.taller], ['Compañía', p.compania]]
+function datosPedido(p, recibido) {
+  const plazo = p.plazo_entrega && !recibido ? p.plazo_entrega.split('-').reverse().join('/') : '';
+  const datos = [['Patente', p.patente], ['Vehículo', p.vehiculo], ['Taller', p.taller], ['Compañía', p.compania], ['Entrega estimada', plazo]]
     .filter(([, v]) => v);
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px"><tr>
     ${datos.map(([k, v]) => `<td valign="top" style="padding:8px 10px 8px 0"><div style="font-size:11px;color:${GRIS};text-transform:uppercase;letter-spacing:.5px">${k}</div><div style="font-size:14px;font-weight:bold">${esc(v)}</div></td>`).join('')}
   </tr></table>`;
+}
+
+// Envíos que ya salieron y todavía falta confirmar que llegaron.
+const enViaje = (s) => s.envios.filter((e) => !e.recibido && e.estado !== 'Preparando envío');
+
+// "¿Ya te llegó?": para quien recibe el paquete, un botón que lo lleva al pedido a tocar "Ya me llegó".
+function bloqueConfirmar(enlace, cuantos) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 4px"><tr>
+    <td style="padding:18px 20px;border:2px solid ${VERDE};border-radius:12px;background:#e2f5ec">
+      <div style="font-size:17px;font-weight:bold;color:${VERDE}">¿Ya te llegó?</div>
+      <div style="font-size:14px;margin:6px 0 14px">Cuando recibas ${cuantos > 1 ? 'cada paquete' : 'el paquete'}, confirmalo en el pedido con el botón
+        «Ya me llegó». Así Genco sabe que está entregado y no tiene que preguntarte.</div>
+      <a href="${esc(enlace)}" style="display:inline-block;padding:12px 22px;background:${VERDE};color:#ffffff;border-radius:10px;text-decoration:none;font-weight:bold">Confirmar que me llegó</a>
+    </td></tr></table>`;
 }
 
 // Arma el mail de novedades para un destinatario.
@@ -120,6 +138,7 @@ export function armarMail(s, novedades, destinatario) {
   const p = s.pedido;
   const recibido = s.recibido;
   const enlace = `${config.appUrl}/mis-pedidos#/pedido/${p.id}`;
+  const porConfirmar = destinatario.confirma ? enViaje(s).length : 0;
   const saludo = destinatario.nombre ? `Hola ${esc(destinatario.nombre)}:` : 'Hola:';
   const estado = `<span style="display:inline-block;padding:6px 14px;border-radius:99px;background:${recibido ? '#e2f5ec' : '#eaf0ff'};color:${recibido ? VERDE : AZUL};font-weight:bold;font-size:14px">${esc(s.estado)}</span>`;
 
@@ -131,20 +150,26 @@ export function armarMail(s, novedades, destinatario) {
       '',
       `Hay novedades en el pedido del siniestro ${p.siniestro}${p.patente ? ` (patente ${p.patente})` : ''}.`,
       `Estado actual: ${s.estado}`,
+      ...(p.plazo_entrega && !recibido ? [`Entrega estimada: ${p.plazo_entrega.split('-').reverse().join('/')}`] : []),
+      ...(porConfirmar ? ['', '¿Ya te llegó? Cuando recibas el paquete, confirmalo en el pedido con el botón "Ya me llegó":', enlace] : []),
       '',
       'Novedades:',
       ...novedades.map((n) => `  ${fechaLocal(n.fecha)}  ${n.descripcion}`),
       ...(s.envios.length ? ['', 'Envíos:', ...s.envios.map((e, i) =>
-        `  Envío ${i + 1}: ${[e.remito && `remito ${e.remito}`, e.transporte, e.guia && `guía ${e.guia}`, e.estado].filter(Boolean).join(' · ')}`)] : []),
+        `  Envío ${i + 1}: ${[e.remito && `remito ${e.remito}`, e.transporte, e.guia && `guía ${e.guia}`, e.estado].filter(Boolean).join(' · ')}` +
+        (e.seguimiento_url && !e.recibido ? `\n    Seguilo en ${e.seguimiento_url} (pegá la guía en su buscador)` : ''))] : []),
       '',
       `Ver el pedido: ${enlace}`,
+      '',
+      notaSpam(),
       '',
       'Grupo Genco · Siniestros. Este es un aviso automático, no hace falta responderlo.',
     ].join('\n'),
     html: plantillaMail({
       titulo: `Novedades de tu pedido · Siniestro ${esc(p.siniestro)}`,
       parrafos: [saludo, `Hay novedades en el pedido de repuestos. Estado actual: ${estado}`],
-      bloques: datosPedido(p) + puntosDeAvance(s) + listaNovedades(novedades) + listaEnvios(s),
+      bloques: (porConfirmar ? bloqueConfirmar(enlace, porConfirmar) : '')
+        + datosPedido(p, recibido) + puntosDeAvance(s) + listaNovedades(novedades) + listaEnvios(s),
       boton: { url: enlace, texto: 'Ver el pedido' },
       pie: 'Te llega porque este pedido está asignado a tu cuenta. Si no querés recibir más avisos de este pedido, '
         + 'desmarcá la opción en el pedido, en "Mis pedidos". Este es un aviso automático, no hace falta responderlo.',

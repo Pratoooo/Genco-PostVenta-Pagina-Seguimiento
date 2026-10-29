@@ -1,0 +1,31 @@
+# Servicio de systemd: la página arranca con el servidor y se reinicia sola si se corta.
+# Lo instala deploy/instalar.sh en /etc/systemd/system/genco-siniestros.service.
+[Unit]
+Description=Genco Siniestros - seguimiento de pedidos
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=genco
+Group=genco
+WorkingDirectory=/opt/genco
+ExecStart=/usr/bin/node --env-file=/opt/genco/.env backend/servidor.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+# La página solo puede escribir en data/ (base de datos y registro de seguridad).
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/genco/data
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

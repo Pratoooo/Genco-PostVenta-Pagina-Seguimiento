@@ -13,8 +13,16 @@ const https = appUrl.startsWith('https://');
 // máquina), un número de saltos (ej. 1 detrás de Cloudflare o de un balanceador) o IPs separadas por coma.
 const proxy = (process.env.TRUST_PROXY || 'loopback').trim();
 
+// "-32.9264973,-68.8320528" -> { lat, lon }
+function coordenadas(texto) {
+  const m = String(texto ?? '').match(/^\s*(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/);
+  return m ? { lat: Number(m[1]), lon: Number(m[2]) } : null;
+}
+
 export const config = {
   puerto,
+  // En el servidor: 127.0.0.1, así solo se entra por nginx (con HTTPS). Vacío: todas las interfaces.
+  host: (process.env.HOST || '').trim() || undefined,
   appUrl,
   // Publicada con HTTPS: cookies solo por conexión segura y HSTS.
   https,
@@ -33,17 +41,18 @@ export const config = {
     password: process.env.ADMIN_PASSWORD || 'genco-admin',
   },
 
+  // Desde dónde salen los pedidos: punto de partida para la distancia y el tiempo hasta cada destino.
+  genco: {
+    direccion: (process.env.GENCO_DIRECCION || '').trim(),
+    // Punto exacto (opcional), "latitud,longitud" como los da Google Maps. Si está, la distancia se calcula
+    // desde ahí en vez de buscar la dirección en el mapa.
+    coordenadas: coordenadas(process.env.GENCO_COORDENADAS),
+  },
+
   // Gmail desde el que salen los mails. La clave es una "contraseña de aplicación" de Google;
   // se aceptan los espacios con los que Google la muestra.
   gmail: {
     usuario: (process.env.GMAIL_USUARIO || '').trim(),
     claveApp: (process.env.GMAIL_CLAVE_APP || '').replace(/\s+/g, ''),
-  },
-
-  // Cuenta de Genco en el sistema web de Sendbox, para leer solo el estado de los envíos.
-  sendbox: {
-    usuario: (process.env.SENDBOX_USUARIO || '').trim(),
-    clave: process.env.SENDBOX_CLAVE || '',
-    intervaloMin: Math.max(5, Number(process.env.SENDBOX_INTERVALO_MIN) || 30),
   },
 };

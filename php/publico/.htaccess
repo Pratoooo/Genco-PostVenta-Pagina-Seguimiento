@@ -1,0 +1,50 @@
+# Página de seguimiento de pedidos de siniestros de Grupo Genco (versión PHP).
+Options -Indexes
+DirectoryIndex login.html
+
+<IfModule mod_rewrite.c>
+  # Sin RewriteBase: anda igual si el subdominio usa esta carpeta como raíz o si el hosting lo lleva a una
+  # carpeta dentro de public_html (como en Ferozo, "Redireccionar a una carpeta del sitio").
+  RewriteEngine On
+
+  # HTTPS obligatorio: el instalador activa estas líneas si la página se abrió con https://
+  #HTTPS# RewriteCond %{HTTPS} !=on
+  #HTTPS# RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+  #HTTPS# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+  # Nada de la carpeta "privado" se sirve (configuración, base de datos, registro, código)
+  RewriteRule ^privado(/|$) - [F,L]
+
+  # Inicio -> iniciar sesión
+  RewriteRule ^$ /login [R=302,L]
+
+  # API
+  RewriteRule ^api(/.*)?$ api/index.php [L,QSA]
+
+  # Pantallas sin ".html": /login, /admin, /mis-pedidos, /consulta
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME}.html -f
+  RewriteRule ^([a-z-]+)/?$ $1.html [L]
+</IfModule>
+
+# Cabeceras de seguridad (las mismas que manda la API)
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "same-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+  Header always set Cross-Origin-Opener-Policy "same-origin"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self'; frame-src https://www.openstreetmap.org; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+  #HTTPS# Header always set Strict-Transport-Security "max-age=31536000"
+</IfModule>
+
+# Archivos que nunca se sirven
+<FilesMatch "\.(sqlite|db|log|ini|sh|md|zip)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>

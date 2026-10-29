@@ -175,6 +175,41 @@ const MIGRACIONES = [
   (db) => {
     db.exec('ALTER TABLE usuarios ADD COLUMN cambiar_password INTEGER NOT NULL DEFAULT 0');
   },
+
+  // 9 · Plazo de entrega: fecha estimada en que llega el pedido ("AAAA-MM-DD"). Vacío = sin plazo.
+  (db) => {
+    db.exec("ALTER TABLE pedidos ADD COLUMN plazo_entrega TEXT NOT NULL DEFAULT ''");
+  },
+
+  // 10 · Destino del envío: dirección de talleres y peritos, a dónde va cada pedido y su ubicación en el
+  //      mapa (coordenadas, distancia y tiempo en auto desde Genco). "ubicaciones" guarda las direcciones
+  //      ya buscadas en el mapa para no consultarlas de nuevo.
+  (db) => {
+    db.exec(`
+      ALTER TABLE usuarios ADD COLUMN direccion TEXT NOT NULL DEFAULT '';
+      -- '' | taller | perito | otra
+      ALTER TABLE pedidos ADD COLUMN destino TEXT NOT NULL DEFAULT '';
+      ALTER TABLE pedidos ADD COLUMN destino_direccion TEXT NOT NULL DEFAULT '';
+      ALTER TABLE pedidos ADD COLUMN destino_lat REAL;
+      ALTER TABLE pedidos ADD COLUMN destino_lon REAL;
+      -- Cómo encontró el mapa la dirección ("Av. San Martín 1200, Mendoza, Mendoza"), para revisar que sea ahí.
+      ALTER TABLE pedidos ADD COLUMN destino_lugar TEXT NOT NULL DEFAULT '';
+      ALTER TABLE pedidos ADD COLUMN destino_km REAL;
+      ALTER TABLE pedidos ADD COLUMN destino_minutos INTEGER;
+      -- '' | ok | no_encontrada | sin_origen | origen_no_encontrado | sin_ruta | error
+      ALTER TABLE pedidos ADD COLUMN destino_estado TEXT NOT NULL DEFAULT '';
+      -- Dirección del destino y de Genco con las que se hizo el último cálculo.
+      ALTER TABLE pedidos ADD COLUMN destino_calculado TEXT NOT NULL DEFAULT '';
+      CREATE TABLE ubicaciones (
+        direccion  TEXT PRIMARY KEY,
+        lat        REAL,
+        lon        REAL,
+        lugar      TEXT NOT NULL DEFAULT '',
+        encontrada INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+  },
 ];
 
 export function migrar(db) {

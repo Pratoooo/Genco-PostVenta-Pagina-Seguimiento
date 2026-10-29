@@ -14,13 +14,23 @@ function pedidoPropio(req) {
   return pedido;
 }
 
+// El pedido como lo ve el taller o el perito, con lo que puede hacer en él.
+const detalle = (pedido, usuario) => ({
+  ...pedidos.seguimiento(pedido),
+  avisos_por_mail: avisosActivos(usuario.id, pedido.id),
+  puede_confirmar: pedidos.puedeConfirmarRecepcion(pedido, usuario),
+});
+
+// `por_confirmar`: hay un envío en viaje que esta cuenta puede confirmar que le llegó.
 router.get('/', (req, res) => {
-  res.json(pedidos.listarAsignados(req.usuario).map(pedidos.resumen));
+  res.json(pedidos.listarAsignados(req.usuario).map((p) => {
+    const r = pedidos.resumen(p);
+    return { ...r, por_confirmar: r.en_viaje > 0 && pedidos.puedeConfirmarRecepcion(p, req.usuario) };
+  }));
 });
 
 router.get('/:id', (req, res) => {
-  const pedido = pedidoPropio(req);
-  res.json({ ...pedidos.seguimiento(pedido), avisos_por_mail: avisosActivos(req.usuario.id, pedido.id) });
+  res.json(detalle(pedidoPropio(req), req.usuario));
 });
 
 // Recibir (o no) por mail las novedades de este pedido. Por defecto, sí.
@@ -28,6 +38,13 @@ router.put('/:id/avisos', (req, res) => {
   const pedido = pedidoPropio(req);
   cambiarAvisos(req.usuario.id, pedido.id, Boolean(req.body?.activos));
   res.json({ avisos_por_mail: avisosActivos(req.usuario.id, pedido.id) });
+});
+
+// "Ya me llegó": el taller o el perito confirma que recibió un envío.
+router.post('/:id/envios/:envio/recibido', (req, res) => {
+  const pedido = pedidoPropio(req);
+  pedidos.confirmarRecepcion(pedido, req.params.envio, req.usuario);
+  res.json(detalle(pedidos.obtener(pedido.id), req.usuario));
 });
 
 export default router;

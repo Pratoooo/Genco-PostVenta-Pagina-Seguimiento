@@ -1,6 +1,6 @@
 // Tarjeta de seguimiento de un pedido: datos, puntos de estado e historial.
 // La usan la consulta pública, "Mis pedidos" y la vista previa del panel admin.
-import { esc, fecha, icono, pillEstado } from './ui.js';
+import { esc, fecha, fechaCorta, icono, pillEstado, copiarTexto, avisoBreve } from './ui.js';
 
 const ICONO_ETAPA = ['origen', 'despacho', 'expreso', 'entrega'];
 
@@ -16,10 +16,43 @@ function renderEnvios(s) {
         ${e.estado_viaje && !e.recibido ? `<span class="envio-viaje">Estado del viaje: ${esc(e.estado_viaje)}</span>` : ''}
       </div>
       ${pillEstado(e, true)}
+      ${e.seguimiento_url && !e.recibido ? seguirEnElExpreso(e) : ''}
     </li>`).join('');
   return `<ul class="envios" aria-label="Envíos">${filas}</ul>
     ${s.despacho_parcial ? '<p class="aviso-parcial">Se envió una parte del pedido. Lo que falta sale en otro envío, con su propio remito y número de guía.</p>' : ''}`;
 }
+
+// Para seguir el envío en la página del expreso: la guía a la vista, un botón para copiarla y otro
+// que la copia y abre la página, donde solo hay que pegarla.
+function seguirEnElExpreso(e) {
+  const guia = esc(e.guia);
+  const expreso = esc(e.transporte);
+  return `<div class="seguir">
+      <p class="seguir-titulo">Seguí este envío en ${expreso}</p>
+      <div class="seguir-fila">
+        <code class="seguir-guia">${guia}</code>
+        <button type="button" class="btn outline" data-copiar="${guia}">Copiar guía</button>
+        <a class="btn" href="${esc(e.seguimiento_url)}" target="_blank" rel="noopener noreferrer"
+          data-copiar="${guia}" data-copiar-destino="${expreso}">Ir a ${expreso} ↗</a>
+      </div>
+      <p class="seguir-ayuda">Al tocar «Ir a ${expreso}» la guía se copia sola: pegala en el buscador de su página.</p>
+    </div>`;
+}
+
+// Botones y enlaces con data-copiar: copian la guía (los enlaces, además, abren la página del expreso).
+document.addEventListener('click', (ev) => {
+  const el = ev.target.closest('[data-copiar]');
+  if (!el) return;
+  const ok = copiarTexto(el.dataset.copiar);
+  if (el.tagName === 'A') {
+    if (ok) avisoBreve(`Guía copiada. Pegala en el buscador de ${el.dataset.copiarDestino || 'la página'}.`);
+    return; // el enlace se abre igual en otra pestaña
+  }
+  if (!ok) return avisoBreve('No se pudo copiar: seleccioná la guía y copiala a mano.');
+  const texto = el.textContent;
+  el.textContent = '¡Copiada!';
+  setTimeout(() => (el.textContent = texto), 1800);
+});
 
 export function renderSeguimiento(s) {
   const etapas = s.etapas
@@ -44,6 +77,7 @@ export function renderSeguimiento(s) {
       <dl class="chips">
         ${dato('Patente', p.patente)}${dato('Vehículo', p.vehiculo)}${dato('Taller', p.taller)}
         ${dato('Perito', p.perito)}${dato('Compañía', p.compania)}${dato('Piezas', p.cantidad_piezas)}
+        ${s.recibido ? '' : dato('Entrega estimada', fechaCorta(p.plazo_entrega))}
       </dl>
       <ol class="stepper" aria-label="Estado del pedido">${etapas}</ol>
       ${renderEnvios(s)}

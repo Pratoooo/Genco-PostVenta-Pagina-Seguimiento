@@ -9,8 +9,17 @@ import { ROLES } from './usuarios.js';
 
 export const ORIGENES = { stock: 'Stock disponible', fabrica: 'Pedido a fábrica' };
 export const DESPACHOS = { parcial: 'Parcial (falta enviar una parte)', total: 'Completo (se envió todo)' };
-export const TRANSPORTES = { angeleri: 'Angeleri', andreani: 'Andreani', sendbox: 'Sendbox' };
+export const TRANSPORTES = { angeleri: 'Angeleri', andreani: 'Andreani', oca: 'OCA', sendbox: 'Sendbox', genco: 'Repartidora de Genco' };
+// Página de cada expreso donde el cliente pega el número de guía para ver el estado del envío.
+// Angeleri y la repartidora de Genco no tienen: el estado lo carga la oficina.
+export const PAGINAS_SEGUIMIENTO = {
+  andreani: 'https://www.andreani.com/',
+  oca: 'https://www.oca.com.ar/',
+  sendbox: 'https://www.sendbox.com.ar/seguimiento/',
+};
 export const ENTREGAS = { en_camino: 'En camino', recibido: 'Recibido' };
+// A dónde se envía el pedido: a la dirección del taller, a la del perito o a otra.
+export const DESTINOS_ENVIO = { taller: 'Al taller', perito: 'Al perito', otra: 'Otra dirección' };
 
 const MAX_ENVIOS = 10;
 
@@ -34,17 +43,8 @@ export const listarEnvios = (pedidoId) => consultaEnvios.all(pedidoId);
 export const buscarPorSiniestroYPatente = (siniestro, patente) =>
   db.prepare(`${SELECT} WHERE p.siniestro = ? AND p.patente = ?`).get(siniestro, patente);
 
-// Búsqueda del panel: siniestro, patente, compañía, taller, perito, remito o número de guía.
-export function listar(q = '') {
-  const like = `%${q}%`;
-  return db
-    .prepare(`${SELECT}
-      WHERE ? = '' OR p.siniestro LIKE ? OR p.patente LIKE ? OR p.compania LIKE ? OR p.taller LIKE ?
-         OR t.nombre LIKE ? OR t.empresa LIKE ? OR pe.nombre LIKE ?
-         OR EXISTS (SELECT 1 FROM envios e WHERE e.pedido_id = p.id AND (e.remito LIKE ? OR e.guia LIKE ?))
-      ORDER BY p.updated_at DESC LIMIT 300`)
-    .all(q, like, `%${norm.patente(q)}%`, like, like, like, like, like, like, like);
-}
+// Todos los pedidos, para la reseña del panel (los filtros se aplican en la pantalla).
+export const listar = () => db.prepare(`${SELECT} ORDER BY p.updated_at DESC`).all();
 
 // Pedidos asignados a un taller o a un perito.
 const columnaAsignacion = (usuario) => (usuario.rol === 'perito' ? 'perito_id' : 'taller_id');
@@ -94,7 +94,9 @@ function etapas(p, envios) {
   ];
   const actual = recibido ? lista.length : Math.max(0, lista.findLastIndex((e) => e.alcanzada));
   const estado = recibido ? 'Recibido' : lista[actual].alcanzada ? lista[actual].titulo : 'En revisión';
-  return { etapas: lista, etapa_actual: actual, recibido, estado };
+  // Para la reseña: en preparación (todavía no salió) | en camino (salió, falta que llegue todo) | recibido.
+  const grupo = recibido ? 'recibido' : despachados.length || recibidos ? 'en_camino' : 'preparacion';
+  return { etapas: lista, etapa_actual: actual, recibido, estado, grupo };
 }
 
 const datos = (p) => ({
@@ -106,13 +108,17 @@ const datos = (p) => ({
   perito: p.perito_nombre,
   compania: p.compania,
   cantidad_piezas: p.cantidad_piezas,
+  plazo_entrega: p.plazo_entrega,
 });
 
 // Lo que se muestra de cada envío.
 const envioPublico = (e) => ({
+  id: e.id,
   remito: e.remito,
   transporte: TRANSPORTES[e.transporte] || '',
   guia: e.guia,
+  // Para que el cliente siga el envío en la página del expreso (solo si tiene guía).
+  seguimiento_url: (e.guia && PAGINAS_SEGUIMIENTO[e.transporte]) || '',
   estado_viaje: e.estado_viaje,
   recibido: e.entrega === 'recibido',
   estado: e.entrega ? ENTREGAS[e.entrega] : e.transporte || e.guia ? 'Despachado' : 'Preparando envío',
@@ -131,10 +137,24 @@ export function seguimiento(p) {
   };
 }
 
-// Fila de los listados.
+// Fila de los listados, con lo necesario para filtrarlos (expreso, remitos, guías, fechas).
 export function resumen(p) {
-  const { etapa_actual, recibido, estado } = etapas(p, listarEnvios(p.id));
-  return { ...datos(p), etapa_actual, recibido, estado, updated_at: p.updated_at };
+  const envios = listarEnvios(p.id);
+  const { etapa_actual, recibido, estado, grupo } = etapas(p, envios);
+  return {
+    ...datos(p),
+    etapa_actual,
+    recibido,
+    estado,
+    grupo,
+    expresos: [...new Set(envios.map((e) => TRANSPORTES[e.transporte]).filter(Boolean))],
+    remitos: envios.map((e) => e.remito).filter(Boolean),
+    guias: envios.map((e) => e.guia).filter(Boolean),
+    // Envíos que ya salieron y todavía no figuran como recibidos.
+    en_viaje: envios.filter((e) => e.entrega !== 'recibido' && (e.transporte || e.guia || e.entrega)).length,
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+  };
 }
 
 // ---------------------------------------------------------------- Alta y modificación
@@ -169,7 +189,27 @@ function leerEnvios(lista) {
   });
 }
 
-const CAMPOS = ['siniestro', 'patente', 'taller_id', 'perito_id', 'compania', 'vehiculo', 'cantidad_piezas', 'origen', 'despacho'];
+// Fecha del plazo de entrega tal como la manda el campo de fecha ("2026-10-15"). Vacío = sin plazo.
+function fechaPlazo(valor) {
+  const v = norm.texto(valor, 10);
+  if (!v) return '';
+  const valida = /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
+  if (!valida || v < '2020-01-01' || v > '2100-12-31') throw new HttpError(400, 'El plazo de entrega no es una fecha válida.');
+  return v;
+}
+
+// "2026-10-15" -> "15/10/2026"
+const fechaArgentina = (v) => v.split('-').reverse().join('/');
+
+const CAMPOS = ['siniestro', 'patente', 'taller_id', 'perito_id', 'compania', 'vehiculo', 'cantidad_piezas', 'origen', 'despacho',
+  'plazo_entrega', 'destino', 'destino_direccion'];
+
+// Dirección de entrega: la que se escribió o, si se eligió "al taller" / "al perito" y quedó vacía, la de su cuenta.
+function direccionDestino(d, escrita) {
+  if (escrita || !['taller', 'perito'].includes(d.destino)) return escrita;
+  const id = d[`${d.destino}_id`];
+  return (id && db.prepare('SELECT direccion FROM usuarios WHERE id = ?').get(id)?.direccion) || '';
+}
 
 // Valida los datos del formulario de pedido (incluidos sus envíos).
 export function leer(b = {}) {
@@ -183,8 +223,11 @@ export function leer(b = {}) {
     cantidad_piezas: b.cantidad_piezas === '' || b.cantidad_piezas == null ? null : Number.parseInt(b.cantidad_piezas, 10),
     origen: opcion(b.origen, ORIGENES, 'Origen'),
     despacho: opcion(b.despacho, DESPACHOS, 'Despacho'),
+    plazo_entrega: fechaPlazo(b.plazo_entrega),
+    destino: opcion(b.destino, DESTINOS_ENVIO, 'Destino'),
     envios: leerEnvios(b.envios),
   };
+  d.destino_direccion = direccionDestino(d, norm.texto(b.destino_direccion, 200));
   if (!d.siniestro) throw new HttpError(400, 'Falta el número de siniestro');
   if (!/^[A-Z0-9]{5,8}$/.test(d.patente)) throw new HttpError(400, 'La patente no parece válida (ej: AB123CD o ABC123)');
   if (d.cantidad_piezas !== null && !(d.cantidad_piezas >= 0)) throw new HttpError(400, 'Cantidad de piezas inválida');
@@ -204,6 +247,7 @@ const cambio = (antes, despues, ...campos) => campos.some((c) => (antes[c] ?? ''
 
 // Anota en el historial los cambios que ven el cliente, el taller y el perito.
 function registrarCambios(id, antes, d) {
+  if (cambio(antes, d, 'plazo_entrega') && d.plazo_entrega) registrarEvento(id, `Entrega estimada para el ${fechaArgentina(d.plazo_entrega)}`);
   if (cambio(antes, d, 'origen') && d.origen) registrarEvento(id, ORIGENES[d.origen]);
   if (cambio(antes, d, 'despacho') && d.despacho) {
     registrarEvento(id, d.despacho === 'parcial' ? 'Despacho parcial: se envía una parte y lo que falta sale después'
@@ -277,29 +321,26 @@ export function eliminar(id) {
   db.prepare('DELETE FROM pedidos WHERE id = ?').run(obtener(id).id);
 }
 
-// ---------------------------------------------------------------- Actualización automática por expreso
+// ---------------------------------------------------------------- Recepción (la confirma quien la recibe)
 
-// Envíos de un expreso que tienen guía y todavía no llegaron (los que hay que consultar).
-export const enviosPendientes = (transporte) =>
-  db.prepare(`SELECT e.*, p.siniestro FROM envios e JOIN pedidos p ON p.id = e.pedido_id
-              WHERE e.transporte = ? AND e.guia <> '' AND e.entrega <> 'recibido' ORDER BY e.id`).all(transporte);
+// Si el pedido va al taller lo confirma el taller; si va al perito, el perito. Si va a otra dirección (o no se
+// indicó), cualquiera de los dos asignados.
+export const puedeConfirmarRecepcion = (p, usuario) => !['taller', 'perito'].includes(p.destino) || p.destino === usuario.rol;
 
-// Aplica a un envío lo que informó el expreso. Solo guarda (y anota en el historial) si algo cambió.
-// Sube la versión del pedido: si alguien lo tenía abierto, al guardar ve el aviso de "otra persona lo modificó".
-export function actualizarEnvioDesdeExpreso(envioId, { estado_viaje, entrega }) {
-  const antes = db.prepare('SELECT * FROM envios WHERE id = ?').get(envioId);
-  if (!antes) return false;
-  const despues = { ...antes, estado_viaje: estado_viaje ?? antes.estado_viaje, entrega: entrega ?? antes.entrega };
-  if (despues.estado_viaje === antes.estado_viaje && despues.entrega === antes.entrega) return false;
-
-  const pedido = obtener(antes.pedido_id);
-  const envios = listarEnvios(pedido.id);
-  const nombre = variosEnvios(pedido, envios) ? `Envío ${envios.findIndex((e) => e.id === antes.id) + 1} · ` : '';
+// "Ya me llegó": el envío queda recibido y, si era lo último que faltaba, el pedido pasa a "Recibido".
+// Sube la versión del pedido, así un formulario del panel abierto desde antes no lo vuelve atrás al guardar.
+export function confirmarRecepcion(p, envioId, usuario) {
+  if (!puedeConfirmarRecepcion(p, usuario)) {
+    throw new HttpError(403, `Este pedido se envía ${DESTINOS_ENVIO[p.destino].toLowerCase()}: la llegada la confirma quien lo recibe.`);
+  }
+  const envios = listarEnvios(p.id);
+  const i = envios.findIndex((e) => e.id === Number(envioId));
+  if (i < 0) throw new HttpError(404, 'No se encontró ese envío. Puede que Genco lo haya cambiado: actualizá la página.');
+  if (envios[i].entrega === 'recibido') return;
+  const quien = usuario.rol === 'taller' ? usuario.empresa || usuario.nombre : usuario.nombre;
   transaction(() => {
-    db.prepare('UPDATE envios SET estado_viaje = ?, entrega = ? WHERE id = ?').run(despues.estado_viaje, despues.entrega, antes.id);
-    db.prepare("UPDATE pedidos SET version = version + 1, updated_at = datetime('now') WHERE id = ?").run(pedido.id);
-    if (despues.entrega === 'recibido') registrarEvento(pedido.id, `${nombre}Recibido`);
-    else if (despues.estado_viaje !== antes.estado_viaje) registrarEvento(pedido.id, `${nombre}${despues.estado_viaje}`);
+    db.prepare("UPDATE envios SET entrega = 'recibido' WHERE id = ?").run(envios[i].id);
+    db.prepare("UPDATE pedidos SET version = version + 1, updated_at = datetime('now') WHERE id = ?").run(p.id);
+    registrarEvento(p.id, `${variosEnvios(p, envios) ? `Envío ${i + 1} · ` : ''}Recibido (lo confirmó ${quien})`);
   });
-  return true;
 }

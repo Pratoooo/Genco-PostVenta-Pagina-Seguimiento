@@ -3,8 +3,8 @@ import { Router } from 'express';
 import { requireRol, crearSesion } from '../lib/auth.js';
 import * as pedidos from '../modelos/pedidos.js';
 import * as usuarios from '../modelos/usuarios.js';
-import { estadoLectura, leerSendbox } from '../servicios/seguimientoSendbox.js';
 import { estadoAvisos, avisarAhora } from '../servicios/avisosPedido.js';
+import { infoDestino, calcularDestino, recalcularDestinos } from '../servicios/mapas.js';
 import { registrar } from '../lib/registroSeguridad.js';
 
 const router = Router();
@@ -19,6 +19,8 @@ router.get('/opciones', (req, res) => {
     origenes: pedidos.ORIGENES,
     despachos: pedidos.DESPACHOS,
     transportes: pedidos.TRANSPORTES,
+    paginasSeguimiento: pedidos.PAGINAS_SEGUIMIENTO,
+    destinos: pedidos.DESTINOS_ENVIO,
     entregas: pedidos.ENTREGAS,
     roles: usuarios.ROLES,
     talleres: usuarios.asignables('taller'),
@@ -29,24 +31,34 @@ router.get('/opciones', (req, res) => {
 
 // ---------------------------------------------------------------- Pedidos
 
+// Todos los pedidos para la reseña (los filtros se aplican en la pantalla).
 router.get('/pedidos', (req, res) => {
-  res.json(pedidos.listar(String(req.query.q ?? '').trim()).map(pedidos.resumen));
+  res.json(pedidos.listar().map((p) => ({ ...pedidos.resumen(p), ubicacion: infoDestino(p) })));
 });
+
+// Al guardar, se espera unos segundos a que el destino se ubique en el mapa; si tarda más, sigue solo.
+const conTope = (promesa, ms) => Promise.race([promesa, new Promise((r) => setTimeout(r, ms))]);
 
 router.get('/pedidos/:id', (req, res) => {
   const p = pedidos.obtener(req.params.id);
-  res.json({ ...p, envios: pedidos.listarEnvios(p.id), seguimiento: pedidos.seguimiento(p), avisos: estadoAvisos(p) });
+  const ubicacion = infoDestino(p);
+  if (ubicacion.estado === 'calculando' || ubicacion.estado === 'error') calcularDestino(p.id);
+  res.json({ ...p, envios: pedidos.listarEnvios(p.id), seguimiento: pedidos.seguimiento(p), avisos: estadoAvisos(p), ubicacion });
 });
 
 // "Enviar aviso ahora" por mail, sin esperar.
 router.post('/pedidos/:id/avisar', async (req, res) => res.json(await avisarAhora(req.params.id)));
 
-router.post('/pedidos', (req, res) => {
-  res.status(201).json(pedidos.crear(pedidos.leer(req.body)));
+router.post('/pedidos', async (req, res) => {
+  const p = pedidos.crear(pedidos.leer(req.body));
+  await conTope(calcularDestino(p.id), 4000);
+  res.status(201).json(pedidos.obtener(p.id));
 });
 
-router.put('/pedidos/:id', (req, res) => {
-  res.json(pedidos.actualizar(req.params.id, pedidos.leer(req.body), versionDe(req)));
+router.put('/pedidos/:id', async (req, res) => {
+  const p = pedidos.actualizar(req.params.id, pedidos.leer(req.body), versionDe(req));
+  await conTope(calcularDestino(p.id), 4000);
+  res.json(pedidos.obtener(p.id));
 });
 
 router.delete('/pedidos/:id', (req, res) => {
@@ -55,13 +67,6 @@ router.delete('/pedidos/:id', (req, res) => {
   registrar('pedido_eliminado', { siniestro }, req, 'aviso');
   res.json({ ok: true });
 });
-
-// ---------------------------------------------------------------- Lectura automática de Sendbox
-
-router.get('/sendbox', (req, res) => res.json(estadoLectura()));
-
-// "Actualizar ahora": lee Sendbox en el momento (tarda unos segundos por guía).
-router.post('/sendbox/leer', async (req, res) => res.json(await leerSendbox()));
 
 // ---------------------------------------------------------------- Usuarios
 
@@ -84,6 +89,8 @@ router.put('/usuarios/:id', (req, res) => {
   if (nuevoHash && usuario.id === req.usuario.id) crearSesion(res, { id: usuario.id, password_hash: nuevoHash });
   registrar('usuario_modificado', { cuenta: usuario.email, rol: usuario.rol, activo: usuario.activo, password_cambiada: Boolean(nuevoHash) }, req,
     nuevoHash ? 'aviso' : 'info');
+  // Si cambió su dirección, sus pedidos se vuelven a ubicar en el mapa (en segundo plano).
+  recalcularDestinos().catch(() => {});
   res.json(usuario);
 });
 

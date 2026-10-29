@@ -17,6 +17,8 @@ const CSP = [
   "img-src 'self'",
   "font-src 'self'",
   "connect-src 'self'",
+  // El mapa del destino de cada pedido (panel admin) es el mapa embebido de OpenStreetMap.
+  'frame-src https://www.openstreetmap.org',
   "form-action 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",

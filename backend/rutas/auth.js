@@ -4,7 +4,7 @@ import { config } from '../config.js';
 import { HttpError } from '../lib/errores.js';
 import { limitador, MINUTO } from '../lib/limitador.js';
 import { HASH_FALSO, verifyPassword, necesitaRehash, crearSesion, cerrarSesion, requireSesion } from '../lib/auth.js';
-import { enviarMail, plantillaMail } from '../lib/mailer.js';
+import { enviarMail, plantillaMail, notaSpam } from '../lib/mailer.js';
 import { registrar } from '../lib/registroSeguridad.js';
 import * as norm from '../lib/normalizar.js';
 import * as usuarios from '../modelos/usuarios.js';
@@ -93,7 +93,7 @@ function enviarMailRecuperacion(u, enlace) {
     para: u.email,
     asunto: 'Recuperar tu contraseña — Grupo Genco Siniestros',
     texto: `Hola ${u.nombre}:\n\nPediste crear una nueva contraseña para tu cuenta ${u.email}.\n` +
-      `Entrá a este enlace (vence en ${minutos} minutos):\n\n${enlace}\n\nSi no fuiste vos, ignorá este mensaje: tu contraseña no cambia.\n\nGrupo Genco · Siniestros`,
+      `Entrá a este enlace (vence en ${minutos} minutos):\n\n${enlace}\n\nSi no fuiste vos, ignorá este mensaje: tu contraseña no cambia.\n\n${notaSpam()}\n\nGrupo Genco · Siniestros`,
     html: plantillaMail({
       titulo: 'Recuperar tu contraseña',
       parrafos: [

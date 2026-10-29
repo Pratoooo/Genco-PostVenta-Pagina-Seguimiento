@@ -1,3 +1,10 @@
 node_modules/
 data/
 .env
+dist/
+
+# Versión PHP: lo que crea el instalador o armar.mjs (claves, base de datos, código de instalación)
+php/privado/config.php
+php/privado/config.php.tmp
+php/privado/datos-*/
+php/privado/codigo-instalacion.php

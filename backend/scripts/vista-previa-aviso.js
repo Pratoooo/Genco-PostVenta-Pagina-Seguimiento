@@ -19,7 +19,7 @@ if (!fila) {
 const p = pedidos.obtener(fila.id);
 // Para la vista previa se usan como "novedades" las últimas 4 del historial.
 const novedades = db.prepare('SELECT descripcion, fecha FROM eventos WHERE pedido_id = ? ORDER BY id DESC LIMIT 4').all(p.id).reverse();
-const mail = armarMail(pedidos.seguimiento(p), novedades, { email: emailPrueba || 'taller@ejemplo.com', nombre: 'Taller Norte' });
+const mail = armarMail(pedidos.seguimiento(p), novedades, { email: emailPrueba || 'taller@ejemplo.com', nombre: 'Taller Norte', confirma: true });
 
 // En el archivo las imágenes van embebidas (en el mail real van adjuntas).
 let html = mail.html;

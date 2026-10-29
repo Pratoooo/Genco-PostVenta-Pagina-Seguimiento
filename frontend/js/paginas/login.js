@@ -6,6 +6,11 @@ import { sesionActual } from '../comun/sesion.js';
 pintarIconos();
 activarVerPassword();
 
+// Después de ingresar: la página que se quiso abrir sin sesión (por ejemplo, el pedido del enlace de un mail)
+// o la sección de la cuenta. Solo páginas de este mismo sitio ("/mis-pedidos#/pedido/12").
+const volver = new URLSearchParams(location.search).get('volver');
+const destino = (u) => (volver && /^\/[a-z-]+(#\/[\w/-]*)?$/.test(volver) ? volver : u.destino);
+
 // El token del enlace de recuperación llega después del "#" (así no viaja al servidor).
 let tokenRestablecer = null;
 const mToken = location.hash.match(/^#restablecer=([\w-]+)$/);
@@ -14,7 +19,7 @@ if (mToken) {
   history.replaceState(null, '', location.pathname + '#restablecer');
 } else {
   // Si ya hay sesión, ir directo a la sección que corresponde.
-  sesionActual().then((u) => u && location.replace(u.destino));
+  sesionActual().then((u) => u && location.replace(destino(u)));
 }
 
 // ---------------------------------------------------------------- Pantallas
@@ -93,7 +98,7 @@ alEnviar($('#form-login'), $('#login-msg'), async (f, error) => {
   if (!f.email.value.trim() || !f.password.value) return error('Ingresá tu email y contraseña.');
   try {
     const u = await api('/api/auth/login', { method: 'POST', body: { email: f.email.value, password: f.password.value } });
-    location.replace(u.destino);
+    location.replace(destino(u));
   } catch (err) {
     f.password.select();
     throw err;

@@ -69,9 +69,10 @@ $('#lista-pendientes').addEventListener('click', async (ev) => {
 
 // ---------------------------------------------------------------- Formulario
 
-// Solo los talleres llevan un dato extra: el nombre del taller.
+// Los talleres llevan el nombre del taller; talleres y peritos, la dirección de entrega.
 function mostrarCamposDelRol() {
   $('#u-taller-campo').classList.toggle('hidden', form.elements.rol.value !== 'taller');
+  $('#u-direccion-campo').classList.toggle('hidden', form.elements.rol.value === 'admin');
 }
 form.elements.rol.addEventListener('change', mostrarCamposDelRol);
 
@@ -83,6 +84,7 @@ function datosDelFormulario() {
     email: f.email.value,
     rol,
     empresa: rol === 'taller' ? $('#u-empresa').value : '',
+    direccion: rol === 'admin' ? '' : $('#u-direccion').value,
     activo: f.activo.checked,
     password: f.password.value,
     version: form.dataset.version,
@@ -135,6 +137,7 @@ export async function abrirUsuario(id) {
   form.elements.activo.checked = Boolean(u.activo);
   form.dataset.version = u.version;
   $('#u-empresa').value = u.rol === 'taller' ? u.empresa : '';
+  $('#u-direccion').value = u.direccion ?? '';
   mostrarCamposDelRol();
   $('#aviso-pendiente').classList.toggle('hidden', Boolean(u.aprobado));
   if (avisoPendiente) alerta($('#usuario-msg'), 'ok', avisoPendiente);

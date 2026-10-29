@@ -4,11 +4,8 @@ import { exigirSesion } from '../../comun/sesion.js';
 import { estado, cargarOpciones, alCargarOpciones } from './estado.js';
 import { cargarPedidos, abrirPedido } from './pedidos.js';
 import { cargarUsuarios, abrirUsuario } from './usuarios.js';
-import { cargarEstadoSendbox, despuesDeLeer } from './sendbox.js';
 
-// La lista de pedidos viene con el estado de la lectura de Sendbox arriba.
-const cargarListaPedidos = () => Promise.all([cargarPedidos(), cargarEstadoSendbox()]);
-despuesDeLeer(cargarPedidos);
+const cargarListaPedidos = () => cargarPedidos();
 
 const VISTAS = ['pedidos', 'pedido', 'usuarios', 'usuario'];
 let vistaActual = null;

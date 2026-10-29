@@ -49,6 +49,57 @@ export function pintarIconos(raiz = document) {
   raiz.querySelectorAll('[data-icono]').forEach((el) => (el.innerHTML = icono(el.dataset.icono)));
 }
 
+// Copia un texto al portapapeles. Es sincrónico para que funcione también justo antes de abrir un
+// enlace en otra pestaña (y en conexiones sin https, donde el portapapeles moderno no está disponible).
+export function copiarTexto(texto) {
+  const area = document.createElement('textarea');
+  area.value = texto;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.append(area);
+  area.select();
+  area.setSelectionRange(0, texto.length);
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  area.remove();
+  if (!ok && navigator.clipboard) {
+    navigator.clipboard.writeText(texto).catch(() => {});
+    ok = true;
+  }
+  return ok;
+}
+
+// "2026-10-15" -> "15/10/2026" (fechas sin hora, como el plazo de entrega).
+export const fechaCorta = (v) => (v ? String(v).split('-').reverse().join('/') : '');
+
+// 435 -> "7 h 15 min"; 40 -> "40 min"
+export function duracion(minutos) {
+  if (minutos == null) return '';
+  const h = Math.floor(minutos / 60);
+  const m = minutos % 60;
+  return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`;
+}
+
+// Mensaje corto abajo de la pantalla que se va solo.
+export function avisoBreve(mensaje) {
+  let el = document.querySelector('.aviso-breve');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'aviso-breve';
+    el.setAttribute('role', 'status');
+    document.body.append(el);
+  }
+  el.textContent = mensaje;
+  el.classList.add('visible');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.classList.remove('visible'), 3500);
+}
+
 // Celda de tabla con etiqueta (en celular cada fila se muestra como tarjeta). `html` ya escapado.
 export const celda = (etiqueta, html) => `<td data-label="${etiqueta}">${html ?? ''}</td>`;
 

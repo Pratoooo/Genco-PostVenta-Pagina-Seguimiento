@@ -1,11 +1,10 @@
-// Punto de entrada: prepara la base, verifica Gmail, arranca la lectura de Sendbox y los avisos por
-// mail, y levanta el servidor.
+// Punto de entrada: prepara la base, verifica Gmail, arranca los avisos por mail y levanta el servidor.
 import { config } from './config.js';
 import { asegurarAdmin } from './modelos/usuarios.js';
 import { verificarMail, enviarMail } from './lib/mailer.js';
 import { registrar, configurarAlertas } from './lib/registroSeguridad.js';
-import { iniciarLecturaPeriodica } from './servicios/seguimientoSendbox.js';
 import { iniciarAvisos } from './servicios/avisosPedido.js';
+import { iniciarMapas } from './servicios/mapas.js';
 import { crearApp } from './app.js';
 
 configurarAlertas(enviarMail);
@@ -29,9 +28,9 @@ if (!config.sesion.cookieSegura) {
 
 asegurarAdmin();
 
-crearApp().listen(config.puerto, () => {
+crearApp().listen(config.puerto, config.host, () => {
   console.log(`Genco Siniestros escuchando en http://localhost:${config.puerto}`);
   verificarMail();
-  iniciarLecturaPeriodica();
   iniciarAvisos();
+  iniciarMapas();
 });

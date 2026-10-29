@@ -76,6 +76,10 @@ export async function enviarMail({ para, asunto, texto, html }) {
 
 // Diseño de los mails, con los logos y los colores de la página. Los textos ya vienen escapados.
 //   parrafos: textos simples. bloques: HTML propio (tablas de estado, envíos...). boton: { url, texto }.
+// Para quien encuentra el mail en Spam: cómo hacer que los próximos lleguen a la bandeja de entrada.
+export const notaSpam = () => `¿Te llegó a Spam o Correo no deseado? Marcalo como «No es spam» y agregá ${usuario || 'esta dirección'} `
+  + 'a tus contactos: así los próximos te llegan a la bandeja de entrada.';
+
 export function plantillaMail({ titulo, parrafos = [], bloques = '', boton, pie }) {
   return `<div style="background:#f3f5fa;padding:32px 12px;font-family:Arial,Helvetica,sans-serif">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e7f1">
@@ -88,6 +92,7 @@ export function plantillaMail({ titulo, parrafos = [], bloques = '', boton, pie 
       ${bloques}
       ${boton ? `<p style="margin:26px 0 22px;text-align:center"><a href="${boton.url}" style="display:inline-block;padding:13px 26px;background:#253883;color:#ffffff;border-radius:10px;text-decoration:none;font-weight:bold">${boton.texto}</a></p>` : ''}
       ${pie ? `<p style="margin:0;font-size:13px;color:#5d6680">${pie}</p>` : ''}
+      <p style="margin:16px 0 0;padding:10px 12px;border-radius:10px;background:#fff4e0;color:#8a4b00;font-size:12px">${notaSpam()}</p>
     </div>
   </div>
   <div style="text-align:center;margin:18px 0 0">
